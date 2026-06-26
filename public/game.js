@@ -271,7 +271,7 @@ class Game {
           this.dotsTotal++;
 
     // Pac-Man (posição inicial: linha 16, coluna 10)
-    this.pacman = new Entity(10, 16, 5.5 + level * 0.2);
+    this.pacman = new Entity(10, 15, 5.5 + level * 0.2);
     this.pacman.dir = 'left';
 
     // Fantasmas
@@ -307,7 +307,7 @@ class Game {
       for (let c = 0; c < COLS; c++)
         if (this.map[r][c] === TILE.DOT || this.map[r][c] === TILE.POWER)
           this.dotsTotal++;
-    this.pacman = new Entity(10, 16, 5.5 + this.level * 0.2);
+    this.pacman = new Entity(10, 15, 5.5 + this.level * 0.2);
     this.pacman.dir = 'left';
     this.ghosts.forEach((g, i) => {
       g.e = new Entity(i === 0 ? 10 : 11, i === 0 ? 9 : 10, 5.0 + this.level * 0.15);
@@ -551,7 +551,7 @@ class Game {
   }
 
   respawnEntities() {
-    this.pacman = new Entity(10, 16, 5.5 + this.level * 0.2);
+    this.pacman = new Entity(10, 15, 5.5 + this.level * 0.2);
     this.pacman.dir = 'left';
     this.ghosts.forEach((g, i) => {
       g.e = new Entity(i === 0 ? 10 : 11, i === 0 ? 9 : 10, 5.0 + this.level * 0.15);
