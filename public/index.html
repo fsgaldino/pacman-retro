@@ -131,28 +131,36 @@
 
     #high-scores {
       width: 420px;
-      max-height: 180px;
+      max-height: 220px;
       overflow-y: auto;
-      background: #111;
+      background: linear-gradient(180deg, #111 0%, #0d0d0d 100%);
       border: 1px solid #333;
-      border-radius: 4px;
+      border-radius: 6px;
       padding: 12px 16px;
     }
     #high-scores h3 {
       color: #ffcc00;
       font-size: 14px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       letter-spacing: 2px;
+      text-shadow: 0 0 8px rgba(255,204,0,.3);
+      border-bottom: 1px solid #333;
+      padding-bottom: 6px;
     }
     #scores-list {
-      list-style: decimal inside;
+      list-style: none;
       color: #aaa;
       font-size: 13px;
     }
     #scores-list li {
-      padding: 2px 0;
+      padding: 5px 4px;
       border-bottom: 1px solid #1a1a1a;
+      transition: background .2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+    #scores-list li:hover { background: #1a1a1a; border-radius: 3px; }
     #scores-list li:last-child { border: none; }
 
     #game-overlay {
@@ -173,6 +181,222 @@
     }
     #game-overlay.show { opacity: 1; pointer-events: auto; }
     #game-overlay small { font-size: 14px; color: #ffcc00; margin-top: 12px; }
+
+    /* ── Botão de configurações ── */
+    #settings-btn {
+      padding: 6px 12px;
+      background: #333;
+      color: #ffcc00;
+      border: 1px solid #ffcc00;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 16px;
+      cursor: pointer;
+      transition: .2s;
+    }
+    #settings-btn:hover { background: #ffcc00; color: #111; }
+
+    /* ── Modal de configurações ── */
+    #settings-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    #settings-modal.show { display: flex; }
+
+    .settings-box {
+      background: #111;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      padding: 28px 32px;
+      width: 360px;
+      box-shadow: 0 0 40px rgba(255,204,0,.15);
+    }
+    .settings-box h2 {
+      color: #ffcc00;
+      font-size: 20px;
+      letter-spacing: 3px;
+      margin-bottom: 20px;
+      text-align: center;
+      text-shadow: 0 0 8px rgba(255,204,0,.3);
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #222;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label {
+      color: #ccc;
+      font-size: 14px;
+    }
+    .setting-desc {
+      color: #666;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      cursor: pointer;
+    }
+    .toggle input { display: none; }
+    .toggle .slider {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #333;
+      border-radius: 12px;
+      transition: .3s;
+    }
+    .toggle .slider::before {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; bottom: 3px;
+      background: #888;
+      border-radius: 50%;
+      transition: .3s;
+    }
+    .toggle input:checked + .slider { background: #ffcc00; }
+    .toggle input:checked + .slider::before { transform: translateX(24px); background: #111; }
+
+    /* Difficulty selector */
+    .difficulty-options {
+      display: flex;
+      gap: 6px;
+    }
+    .diff-btn {
+      padding: 6px 10px;
+      background: #222;
+      color: #888;
+      border: 1px solid #333;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition: .2s;
+    }
+    .diff-btn.active { background: #ffcc00; color: #111; border-color: #ffcc00; font-weight: bold; }
+    .diff-btn:hover:not(.active) { border-color: #ffcc00; color: #ffcc00; }
+
+    .settings-close {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px;
+      background: #ffcc00;
+      color: #111;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: .2s;
+    }
+    .settings-close:hover { background: #ffdd33; }
+
+    /* ── Mobile D-pad ── */
+    #mobile-controls {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      padding: 8px 0 16px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .dpad {
+      position: relative;
+      width: 130px;
+      height: 130px;
+    }
+    .dpad-btn {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      background: #222;
+      border: 2px solid #444;
+      border-radius: 6px;
+      color: #ffcc00;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      transition: background .1s;
+    }
+    .dpad-btn:active, .dpad-btn.active {
+      background: #ffcc00;
+      color: #111;
+      border-color: #ffcc00;
+    }
+    .dpad-up    { top: 0; left: 43px; }
+    .dpad-down  { bottom: 0; left: 43px; }
+    .dpad-left  { top: 43px; left: 0; }
+    .dpad-right { top: 43px; right: 0; }
+    .dpad-center {
+      position: absolute;
+      top: 43px; left: 43px;
+      width: 44px; height: 44px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 50%;
+    }
+
+    .action-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .action-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid #444;
+      background: #222;
+      color: #ffcc00;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      transition: background .1s;
+    }
+    .action-btn:active, .action-btn.active {
+      background: #ffcc00;
+      color: #111;
+      border-color: #ffcc00;
+    }
+
+    @media (pointer: coarse), (max-width: 500px) {
+      #mobile-controls { display: flex; }
+      #game-screen { padding: 8px; gap: 6px; }
+      #game-header { font-size: 13px; gap: 12px; }
+      #game-header span { min-width: 80px; }
+      #game-canvas { max-width: 100%; height: auto; }
+      #high-scores { max-width: 100%; width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -209,6 +433,7 @@
       <span>❤️ <span id="lives-display">3</span></span>
       <span>🎯 <span id="level-display">1</span></span>
       <button id="logout-btn">Sair</button>
+      <button id="settings-btn">⚙️</button>
     </div>
     <div style="position:relative">
       <canvas id="game-canvas" width="420" height="420"></canvas>
@@ -217,9 +442,66 @@
         <small id="overlay-hint">Pressione ESPAÇO para jogar novamente</small>
       </div>
     </div>
+    <div id="mobile-controls">
+      <div class="dpad">
+        <button class="dpad-btn dpad-up" data-dir="up">▲</button>
+        <button class="dpad-btn dpad-down" data-dir="down">▼</button>
+        <button class="dpad-btn dpad-left" data-dir="left">◄</button>
+        <button class="dpad-btn dpad-right" data-dir="right">►</button>
+        <div class="dpad-center"></div>
+      </div>
+      <div class="action-btns">
+        <button class="action-btn" id="mobile-start">START</button>
+        <button class="action-btn" id="mobile-pause">❚❚</button>
+      </div>
+    </div>
     <div id="high-scores">
       <h3>🏅 HIGH SCORES</h3>
       <ol id="scores-list"></ol>
+    </div>
+  </div>
+
+  <!-- ─── SETTINGS MODAL ─── -->
+  <div id="settings-modal">
+    <div class="settings-box">
+      <h2>⚙️ CONFIGURAÇÕES</h2>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Animação de Intro</div>
+          <div class="setting-desc">Mostra intro animada ao iniciar</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-intro" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Som</div>
+          <div class="setting-desc">Efeitos sonoros do jogo</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-sound" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Dificuldade</div>
+          <div class="setting-desc">Afeta IA e velocidade dos fantasmas</div>
+        </div>
+        <div class="difficulty-options">
+          <button class="diff-btn" data-diff="easy">Fácil</button>
+          <button class="diff-btn active" data-diff="normal">Normal</button>
+          <button class="diff-btn" data-diff="hard">Difícil</button>
+          <button class="diff-btn" data-diff="extreme">Extremo</button>
+        </div>
+      </div>
+
+      <button class="settings-close" id="settings-close">FECHAR</button>
     </div>
   </div>
 
