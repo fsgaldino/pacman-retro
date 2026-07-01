@@ -35,13 +35,13 @@
 ## Roadmap de Versões
 
 ```
-v0.9 (Beta)          v1.0 (Funcional)             v2.0                         v2.2 (Polish)
-  │                      │                            │                           │
-  ├─ 2 fantasmas         ├─ 4 fantasmas + IA          ├─ Sistema de combo         ├─ Fluidez de movimento 90°
-  ├─ Movimento básico    ├─ FIX 1: Target-based       ├─ Menu de configurações    ├─ Fantasmas 3/4 saem da casa
-  ├─ 100 linhas IA       ├─ FIX 2: Buffer de input    ├─ Controles mobile (D-pad) ├─ Frutas por tempo (30s)
-  ├─ Sem save            ├─ FIX 3: Ghost house        ├─ Efeitos visuais por tier ├─ Salvamento automático
-  ├─ Sem frutas          ├─ Scatter/Chase cycle       ├─ Tela de pausa aprimorada ├─ Botão Continue mobile
+v0.9 (Beta)          v1.0 (Funcional)             v2.0                         v2.2 (Polish)               v2.3 (Bug Fixes)
+  │                      │                            │                           │                            │
+  ├─ 2 fantasmas         ├─ 4 fantasmas + IA          ├─ Sistema de combo         ├─ Fluidez de movimento 90°  ├─ Copyright no topo
+  ├─ Movimento básico    ├─ FIX 1: Target-based       ├─ Menu de configurações    ├─ Fantasmas 3/4 saem da casa├─ Fruta renderiza limpa
+  ├─ 100 linhas IA       ├─ FIX 2: Buffer de input    ├─ Controles mobile (D-pad) ├─ Frutas por tempo (30s)    ├─ Power pellet restaurado
+  ├─ Sem save            ├─ FIX 3: Ghost house        ├─ Efeitos visuais por tier ├─ Salvamento automático     ├─ Ranking no pause
+  ├─ Sem frutas          ├─ Scatter/Chase cycle       ├─ Tela de pausa aprimorada ├─ Botão Continue mobile     └─ v2.3.1: 4 bug fixes
   └─ 2 sons              ├─ 4 fantasmas completos     ├─ Combo de score           ├─ Efeitos de fruta (spawn+eat)
                          ├─ Sistema de frutas         ├─ Dificuldade ajustável    ├─ Ranking modal + créditos
                          ├─ Save/resume (localStorage)├─ Intro tier-based         └─ v2.1: Mute + keyboard hints
@@ -116,7 +116,7 @@ v0.9 (Beta)          v1.0 (Funcional)             v2.0                         v
 - **Progressão de nível** — velocidade, IA e visual aumentam a cada fase
 - **Save/Resume** — auto-save ao morrer, Continue/Restart no GAMEOVER, detecção no login (localStorage)
 - **High Score** — submissão autenticada, tela de celebração com confete
-- **Créditos** — "ProntaCorp S.A. — tecnologia com propósito humano" no footer do canvas (IDLE/PLAYING), copyright no pause/gameover, completo no ranking
+- **Créditos** — "ProntaCorp S.A. — tecnologia com propósito humano" no topo do canvas durante gameplay (IDLE/PLAYING), copyright no pause/gameover, completo no ranking
 
 ### 🏆 Sistema de Combo
 
@@ -399,6 +399,15 @@ O projeto iniciou como um protótipo básico com as seguintes limitações:
 - **Botão Continue mobile** — botão verde "▶ CONT" no GAMEOVER com save
 - **Tela de créditos** — "© ProntaCorp S.A." no estado IDLE
 - **Frutas reordenadas** — 🍒→🍓→🍎→🍉→🍈→🚀 (cereja, morango, maçã, melancia, melão, foguete)
+
+### 🏷️ v2.3.1 — Bug Fixes
+
+**Correções de bugs:**
+
+- **Copyright no topo durante gameplay** — Texto "ProntaCorp S.A." agora é renderizado no topo do canvas durante a gameplay, sem sobrepor a ação. A posição no pause permanece inalterada.
+- **Fruta renderiza limpa** — A fruta agora spawna em um tile limpo (TILE.EMPTY) ao invés de sobrepor a pastilha onde aparecia, eliminando o efeito de esmaecimento.
+- **Power pellet restaurado** — Quando a fruta expira sem ser comida, o tile original (DOT ou POWER) é restaurado corretamente.
+- **Ranking no pause** — A tela de pause agora aguarda o carregamento dos top 5 scores antes de renderizar, evitando ranking vazio ao pausar no início.
 
 ---
 
