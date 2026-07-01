@@ -100,7 +100,7 @@ v0.9 (Beta)          v1.0 (Funcional)             v2.0                         v
 
 ---
 
-## Funcionalidades (v2.2)
+## Funcionalidades
 
 ### 🎮 Jogo
 
@@ -241,7 +241,7 @@ Capturas de tela do jogo em diferentes estados. Para gerar as screenshots, execu
 
 <img src="screenshots/08-gameover.png" alt="Tela de Game Over" width="420">
 
-> Tela de Game Over com opções de continuar (C), reiniciar (N) ou voltar ao ranking (R).
+> Tela de Game Over com opções de continuar (C) ou reiniciar (N).
 
 ### 📸 Como Capturar Screenshots
 
