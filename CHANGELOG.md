@@ -7,6 +7,32 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [2.3.1] - 2026-06-30
+
+### Fixed
+
+#### 🐛 Copyright sobrepondo gameplay
+- **Problema:** Texto de copyright (ProntaCorp S.A.) ficava no topo da tela durante gameplay, sobrepondo a ação
+- **Solução:** `_renderCreditsFooter` agora aceita parâmetro `atTop`; durante `PLAYING` renderiza no topo do canvas sem sobrepor
+- **Impacto:** Créditos visíveis na posição correta durante gameplay
+
+#### 🐛 Fruta esmaecida sobre pastilha
+- **Problema:** Fruta era renderizada sobrepastilha DOT/POWER, causando efeito de esmaecimento
+- **Solução:** `_spawnFruit` agora salva o tile original e limpa para `TILE.EMPTY` antes de spawnar a fruta
+- **Impacto:** Fruta aparece limpa e sem sobreposição visual
+
+#### 🐛 Power pellet fantasma após comer fruta
+- **Problema:** Quando a fruta expirava, o tile POWER permanecia visível como power pellet estática
+- **Solução:** Tile original é restaurado quando a fruta expira (DOT ou POWER)
+- **Impacto:** Power pellet só reaparece quando a fruta desaparece naturalmente
+
+#### 🐛 Ranking vazio ao pausar no início
+- **Problema:** `_fetchPauseScores` era assíncrono mas não aguardava completion antes de renderizar
+- **Solução:** `togglePause` agora é `async` e faz `await` do `_fetchPauseScores()` antes de renderizar a tela de pause
+- **Impacto:** Top 5 scores sempre visíveis ao pausar, mesmo sem pontuação
+
+---
+
 ## [2.2.0] - 2025-06-30
 
 ### Added
