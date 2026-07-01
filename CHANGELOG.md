@@ -45,8 +45,8 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 #### 🐛 Sistema de Frutas
 - **Problema:** Frutas não apareciam aleatoriamente; sistema baseado em contagem de dots era imprevisível
-- **Solução:** Timer de 2 minutos (`FRUIT_SPAWN_INTERVAL`); frutas spawnam em posições aleatórias sobre pastilhas; ordem progressiva: 🍒→🍓→🍎→🍉→🍈→🚀
-- **Impacto:** Frutas aparecem previsivelmente a cada 2 minutos em posições variadas
+- **Solução:** Timer de 30 segundos (`FRUIT_SPAWN_INTERVAL`); frutas spawnam em posições aleatórias sobre pastilhas, ciclo infinito; ordem progressiva: 🍒→🍓→🍎→🍉→🍈→🚀
+- **Impacto:** Frutas aparecem a cada 30 segundos em posições variadas e desaparecem após 30s
 
 #### 🐛 Salvamento Automático
 - **Problema:** Save não funcionava corretamente; tecla N só funcionava em pausa

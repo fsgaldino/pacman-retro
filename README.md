@@ -13,7 +13,7 @@
 
 - [Roadmap de Versões](#roadmap-de-versões)
 - [Arquitetura](#arquitetura)
-- [Funcionalidades (v2.0 Final)](#funcionalidades-v20-final)
+- [Funcionalidades](#funcionalidades-v22)
 - [Galeria](#galeria)
 - [Changelog Detalhado](#changelog-detalhado)
 - [Pré-requisitos](#pré-requisitos)
@@ -35,15 +35,15 @@
 ## Roadmap de Versões
 
 ```
-v0.9 (Beta)          v1.0 (Funcional)             v2.0 (Final)                v2.2 (Polish)
+v0.9 (Beta)          v1.0 (Funcional)             v2.0                         v2.2 (Polish)
   │                      │                            │                           │
   ├─ 2 fantasmas         ├─ 4 fantasmas + IA          ├─ Sistema de combo         ├─ Fluidez de movimento 90°
   ├─ Movimento básico    ├─ FIX 1: Target-based       ├─ Menu de configurações    ├─ Fantasmas 3/4 saem da casa
-  ├─ 100 linhas IA       ├─ FIX 2: Buffer de input    ├─ Controles mobile (D-pad) ├─ Frutas por tempo (2min)
+  ├─ 100 linhas IA       ├─ FIX 2: Buffer de input    ├─ Controles mobile (D-pad) ├─ Frutas por tempo (30s)
   ├─ Sem save            ├─ FIX 3: Ghost house        ├─ Efeitos visuais por tier ├─ Salvamento automático
   ├─ Sem frutas          ├─ Scatter/Chase cycle       ├─ Tela de pausa aprimorada ├─ Botão Continue mobile
   └─ 2 sons              ├─ 4 fantasmas completos     ├─ Combo de score           ├─ Efeitos de fruta (spawn+eat)
-                         ├─ Sistema de frutas         ├─ Dificuldade ajustável    ├─ Tela de créditos
+                         ├─ Sistema de frutas         ├─ Dificuldade ajustável    ├─ Ranking modal + créditos
                          ├─ Save/resume (localStorage)├─ Intro tier-based         └─ v2.1: Mute + keyboard hints
                          ├─ Progressão de nível       ├─ 14+ sons sintetizados
                          ├─ High score + celebração   └─ Leaderboard na pausa
@@ -107,7 +107,7 @@ v0.9 (Beta)          v1.0 (Funcional)             v2.0 (Final)                v2
 - **Pac-Man clássico** controlado pelas setas do teclado (com buffer de direção e tolerância 10px para viradas 90°)
 - **4 fantasmas** com IA clássica por tiers: Blinky, Pinky, Inky, Clyde — todos saem da casa corretamente
 - **Ciclo Scatter/Chase** com timings progressivos por nível
-- **Sistema de frutas** — 6 frutas (🍒🍓🍎🍉🍈🚀) com spawn progressivo a cada 2 minutos em posições aleatórias sobre pastilhas, power-ups (Speed, Shield)
+- **Sistema de frutas** — 6 frutas (🍒🍓🍎🍉🍈🚀) com spawn a cada 30 segundos em posições aleatórias sobre pastilhas, visíveis por 30 segundos, ciclo infinito; power-ups (Speed, Shield)
 - **Efeitos visuais de fruta** — brilho/pulso com partículas ao aparecer; explosão radial ao ser comida
 - **Power pellets** — ativam modo fright (fantasmas azuis e vulneráveis)
 - **Túneis** — wrap-around horizontal nas bordas do mapa
@@ -116,7 +116,7 @@ v0.9 (Beta)          v1.0 (Funcional)             v2.0 (Final)                v2
 - **Progressão de nível** — velocidade, IA e visual aumentam a cada fase
 - **Save/Resume** — auto-save ao morrer, Continue/Restart no GAMEOVER, detecção no login (localStorage)
 - **High Score** — submissão autenticada, tela de celebração com confete
-- **Créditos** — "© ProntaCorp S.A." no estado IDLE
+- **Créditos** — "ProntaCorp S.A. — tecnologia com propósito humano" no footer do canvas (IDLE/PLAYING), copyright no pause/gameover, completo no ranking
 
 ### 🏆 Sistema de Combo
 
@@ -231,6 +231,18 @@ Capturas de tela do jogo em diferentes estados. Para gerar as screenshots, execu
 
 > Efeitos visuais progridem por tier: glow aura (tier 2+), sombra pulsante e olhos azuis (tier 3), afterimage e olhos vermelhos pulsantes (tier 4).
 
+### 🏆 Passagem de Nível
+
+<img src="screenshots/07-levelup.png" alt="Tela de passagem de nível" width="420">
+
+> Tela de transição entre níveis com stats: pontuação atual, vidas restantes e fantasmas decorativos.
+
+### 💀 Game Over
+
+<img src="screenshots/08-gameover.png" alt="Tela de Game Over" width="420">
+
+> Tela de Game Over com opções de continuar (C), reiniciar (N) ou voltar ao ranking (R).
+
 ### 📸 Como Capturar Screenshots
 
 ```bash
@@ -310,7 +322,7 @@ O projeto iniciou como um protótipo básico com as seguintes limitações:
 - **Intermissão** — tela entre níveis com stats e fantasmas decorativos
 - **10+ sons** — gameStart, eatFruit, powerUp, levelComplete, ready, modeSwitch, intro
 
-### 🏷️ v2.0 — Final (Features Premium)
+### 🏷️ v2.0 — Features Premium
 
 **Sistema de Combo:**
 - Contador unificado para ghosts e frutas com janela de 3 segundos
@@ -372,7 +384,7 @@ O projeto iniciou como um protótipo básico com as seguintes limitações:
 
 - **Fluidez de movimento 90°** — `TURN_TOLERANCE` aumentado para 10px; detecção antecipada de cruzamento
 - **Fantasmas 3 e 4 saindo da casa** — navega horizontalmente até coluna 10 antes de subir
-- **Sistema de frutas** — timer de 2 minutos, spawn aleatório sobre pastilhas, ordem progressiva
+- **Sistema de frutas** — timer de 30 segundos, spawn aleatório sobre pastilhas, ciclo infinito, ordem progressiva
 - **Salvamento automático** — auto-save ao morrer, Continue/Restart no GAMEOVER, detecção no login
 
 **Novas funcionalidades:**
@@ -445,7 +457,9 @@ pacman-app/
 │   ├── 02-gameplay.png
 │   ├── 03-pause.png
 │   ├── 04-settings.png
-│   └── 05-mobile.png
+│   ├── 06-auth.png
+│   ├── 07-levelup.png
+│   └── 08-gameover.png
 ├── Dockerfile            # Build da imagem Node Alpine
 ├── docker-compose.yml    # Orquestração do contêiner
 └── pacman-data/          # (criado automaticamente) Banco SQLite persistido
@@ -834,7 +848,7 @@ npm start
 | P             | Pausar / Retomar                                        |
 | N             | Novo jogo (ignora save) — funciona em IDLE e GAMEOVER  |
 | C             | Continuar jogo salvo (GAMEOVER com save)                |
-| R             | Reiniciar do nível 1 (GAMEOVER com save)                |
+| R             | Abrir ranking (IDLE, Pausa e Game Over)                 |
 | M             | Alternar som (mute/desmute)                             |
 | ⚙️ (botão)     | Abrir configurações                                     |
 | 🔊/🔇 (botão) | Alternar som rápido no header                           |

@@ -47,8 +47,8 @@ const FRUITS = [
   { emoji: '🍈', points: 1000, powerUp: 'speed' },
   { emoji: '🚀', points: 2000, powerUp: 'shield' },
 ];
-const FRUIT_SPAWN_INTERVAL = 120; // 2 minutos entre frutas
-const FRUIT_DURATION = 12; // segundos visível no mapa
+const FRUIT_SPAWN_INTERVAL = 30; // 30 segundos entre frutas
+const FRUIT_DURATION = 30; // segundos visível no mapa
 const POWERUP_SPEED_MULT = 1.5;
 const POWERUP_SPEED_DURATION = 5;
 const POWERUP_SHIELD_DURATION = 4;
@@ -306,8 +306,8 @@ class Game {
     this._savedModeIndex = 0; this._savedModeTimer = 0;
     this.fruit = null; this.fruitCol = 10; this.fruitRow = 9;
     this.fruitTimer = 0; this.fruitIndex = 0;
-    this.fruitSpawnTimer = 0; // FIX 3 — timer entre frutas
-    this.fruitSpawnAnim = 0; // duração da animação de spawn da fruta
+    this.fruitSpawnTimer = 0;
+    this.fruitSpawnAnim = 0;
     this.fruitParticles = []; // partículas da fruta
     this.fruitEatEffects = []; // efeitos ao comer fruta
     this._readySoundPlayed = false;
@@ -385,7 +385,7 @@ class Game {
     this.frightTimer = 0; this.spawnTimer = 0; this.scorePopups = [];
     this.modeTimer = 0; this.modeIndex = 0;
     this.fruit = null; this.fruitCol = 10; this.fruitRow = 9;
-    this.fruitTimer = 0; this.fruitIndex = 0; this.fruitSpawnTimer = 0;
+    this.fruitTimer = 0; this.fruitIndex = 0; this.fruitSpawnTimer = 0; // reset para contagem de 30s
     this.fruitSpawnAnim = 0; this.fruitParticles = []; this.fruitEatEffects = [];
     this.powerUpSpeedTimer = 0; this.powerUpShieldTimer = 0;
     this.powerUpSpeedActive = false; this.powerUpShieldActive = false;
@@ -463,8 +463,9 @@ class Game {
         ctx.textAlign = 'right'; ctx.fillText(s.player_email || '', W - 50, sy); sy += 18;
       });
     }
+    this._renderCreditsCopyright(ctx, H - 12);
     ctx.fillStyle = '#666'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('P para continuar  •  ⚙️ Configurações', cx, H - 20);
+    ctx.fillText('P para continuar  •  ⚙️ Configurações', cx, H - 28);
   }
 
   update(dt) {
@@ -556,7 +557,7 @@ class Game {
     }
 
     // ── FIX 3 — Fruta: spawna progressivamente a cada 2 minutos ──
-    if (this.fruitIndex < FRUITS.length && !this.fruit) {
+    if (!this.fruit) {
       this.fruitSpawnTimer += dt;
       if (this.fruitSpawnTimer >= FRUIT_SPAWN_INTERVAL) {
         this.fruitSpawnTimer = 0;
@@ -701,7 +702,7 @@ class Game {
     this.fruitTimer = FRUIT_DURATION;
     this.fruitSpawnAnim = 2.0; // 2s de animação de spawn
     this.fruitParticles = []; // reseta partículas
-    this.fruitIndex++;
+    this.fruitIndex = (this.fruitIndex + 1) % FRUITS.length;
     Audio.powerUp(); // som ao aparecer
   }
 
@@ -795,11 +796,11 @@ class Game {
     Audio.death(); this.updateUI();
   }
 
-  // FIX 4 — Overlay de GAMEOVER com Continue/Restart
+  // Overlay de GAMEOVER com Continue/Restart
   _showGameOverOverlay() {
     const hasSave = this._hasSave();
     if (hasSave) {
-      this.showOverlay('GAME OVER', 'C continuar  •  R reiniciar');
+      this.showOverlay('GAME OVER', 'C continuar  •  N reiniciar');
     } else {
       this.showOverlay('GAME OVER', 'Pressione ESPAÇO');
     }
@@ -841,7 +842,7 @@ class Game {
     if (!token) return;
     try {
       await fetch('/api/scores', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ score: this.score }) });
-      const res = await fetch('/api/scores?limit=10'); const scores = await res.json(); fetchScores();
+      const res = await fetch('/api/scores?limit=10'); const scores = await res.json();
       const rank = scores.findIndex(s => s.score <= this.score && s.player_email);
       if (rank >= 0 && this.score > 0) {
         this.highScoreRank = rank + 1; this.highScoreTimer = 4.0; this.highScoreParticles = [];
@@ -964,9 +965,10 @@ class Game {
     }
 
     if (this.state === 'PAUSED') this._renderPause(ctx);
+    if (this.state === 'GAMEOVER') this._renderCreditsCopyright(ctx, H - 16);
 
-    // FIX 5 — Créditos no IDLE
-    if (this.state === 'IDLE') this._renderCredits(ctx);
+    if (this.state === 'IDLE') this._renderCreditsFooter(ctx);
+    if (this.state === 'PLAYING') this._renderCreditsFooter(ctx);
   }
 
   drawPacman(ctx) {
@@ -1058,7 +1060,7 @@ class Game {
   _finishIntro() {
     this.introTimer = 0;
     if (this.level > 1) { this.state = 'READY'; this.readyTimer = 2.0; this._readySoundPlayed = false; }
-    else { this.state = 'IDLE'; this._showIdleOverlay(); }
+    else { this.state = 'IDLE'; this._showIdleOverlay(); setTimeout(() => { if (this.state === 'IDLE') this._showRanking(); }, 300); }
   }
 
   _settingsKey() { return 'pacman_settings'; }
@@ -1087,6 +1089,13 @@ class Game {
     introToggle.onchange = () => { this.settings.introEnabled = introToggle.checked; this._saveSettings(); };
     soundToggle.onchange = () => { this.settings.soundEnabled = soundToggle.checked; this._saveSettings(); };
     diffBtns.forEach(b => { b.onclick = () => { diffBtns.forEach(x => x.classList.remove('active')); b.classList.add('active'); this.settings.difficulty = b.dataset.diff; this._saveSettings(); }; });
+    // Ranking modal
+    const rnkBtn = document.getElementById('ranking-btn');
+    const rnkModal = document.getElementById('ranking-modal');
+    const rnkClose = document.getElementById('ranking-close');
+    if (rnkBtn) rnkBtn.onclick = () => this._showRanking();
+    if (rnkClose) rnkClose.onclick = () => this._hideRanking();
+    if (rnkModal) rnkModal.onclick = (e) => { if (e.target === rnkModal) this._hideRanking(); };
   }
 
   // ── SAVE/RESUME ─────────────────────────────────────────
@@ -1105,7 +1114,7 @@ class Game {
     this.fruitIndex = saveData.fruitIndex || 0;
     this.fruitSpawnTimer = saveData.fruitSpawnTimer || 0;
     this.modeIndex = saveData.modeIndex || 0; this.modeTimer = saveData.modeTimer || 0;
-    this.dotsTotal = 0;
+    this.dotsTotal = this.dotsEaten; // BUG FIX: inclui dots já comidos no total
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (this.map[r][c] === TILE.DOT || this.map[r][c] === TILE.POWER) this.dotsTotal++;
     const spd = getSpeeds(this.level);
     this.pacman = new Entity(10, 15, spd.pacman); this.pacman.dir = 'left';
@@ -1123,6 +1132,7 @@ class Game {
     this.settings = this._loadSettings();
     this.state = 'READY'; this.readyTimer = 2.0; this._readySoundPlayed = false;
     this.hideOverlay(true); this.updateUI();
+    this._hideRanking();
     this._updateMobileContinueBtn();
   }
 
@@ -1131,14 +1141,46 @@ class Game {
     else this.showOverlay('PRESSIONE ESPAÇO', 'para começar');
   }
 
-  // ── FIX 5 — Créditos ──
-  _renderCredits(ctx) {
+  // ── Créditos ──
+  _renderCreditsFooter(ctx) {
     const cx = W / 2;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, H - 50, W, 50);
-    ctx.fillStyle = '#555'; ctx.font = '9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('PAC-MAN RETRÔ', cx, H - 35);
-    ctx.fillStyle = '#ffcc00'; ctx.font = 'bold 10px monospace';
-    ctx.fillText('© ProntaCorp S.A.', cx, H - 18);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, H - 40, W, 40);
+    ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PAC-MAN RETRÔ', cx, H - 28);
+    ctx.fillStyle = '#ffcc00'; ctx.font = 'bold 9px monospace';
+    ctx.fillText('ProntaCorp S.A.', cx, H - 16);
+    ctx.fillStyle = '#888'; ctx.font = '8px monospace';
+    ctx.fillText('tecnologia com propósito humano', cx, H - 6);
+  }
+  _renderCreditsCopyright(ctx, y) {
+    const cx = W / 2;
+    ctx.fillStyle = '#555'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('© ProntaCorp S.A.', cx, y);
+  }
+  _showRanking() {
+    const modal = document.getElementById('ranking-modal');
+    if (!modal) return;
+    modal.classList.add('show');
+    this._fetchRankingScores();
+  }
+  _hideRanking() {
+    const modal = document.getElementById('ranking-modal');
+    if (modal) modal.classList.remove('show');
+  }
+  async _fetchRankingScores() {
+    try {
+      const res = await fetch('/api/scores?limit=10');
+      const scores = await res.json();
+      const list = document.getElementById('ranking-list');
+      if (!list) return;
+      if (!scores.length) { list.innerHTML = '<li style="color:#555;">Nenhuma pontuação ainda</li>'; return; }
+      list.innerHTML = scores.map((s, i) => {
+        const medals = ['🥇', '🥈', '🥉'];
+        const medal = i < 3 ? medals[i] + ' ' : `${i + 1}. `;
+        const date = new Date(s.created_at + 'Z').toLocaleDateString('pt-BR');
+        return `<li>${medal}<span style="color:#ffcc00;font-weight:bold">${s.score.toLocaleString()}</span> <span style="color:#888">${s.player_email}</span> <span style="color:#555;font-size:11px">${date}</span></li>`;
+      }).join('');
+    } catch (_) {}
   }
 
   _getIntroConfig() {
@@ -1167,6 +1209,7 @@ class Game {
     for (let i = 0; i < this.lives; i++) { const lx = cx - ((this.lives - 1) * 12) + i * 24; ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(lx, y + 12, 6, 0.25 * Math.PI, 1.75 * Math.PI); ctx.lineTo(lx, y + 12); ctx.closePath(); ctx.fill(); }
     y += 38; const gc = ['#ff0000', '#ffb8ff', '#00ffff', '#ffb851']; const gn = ['BLINKY', 'PINKY', 'INKY', 'CLYDE']; ctx.font = '8px monospace';
     gc.forEach((color, i) => { const gx = cx - 45 + i * 30; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(gx, y, 5, Math.PI, 0); ctx.lineTo(gx + 5, y + 6); ctx.lineTo(gx - 5, y + 6); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#888'; ctx.fillText(gn[i], gx, y + 14); });
+    this._renderCreditsCopyright(ctx, H - 16);
     ctx.globalAlpha = 1;
   }
 
@@ -1246,18 +1289,18 @@ document.addEventListener('keydown', e => {
   if (e.code === 'KeyM') { e.preventDefault(); game._toggleSound(); return; }
   if (e.code === 'KeyP' && (game.state === 'PLAYING' || game.state === 'PAUSED')) { e.preventDefault(); game.togglePause(); return; }
 
-  // FIX 4 — Space no IDLE: continua ou novo jogo
+  // Space no IDLE: continua ou novo jogo
   if (e.code === 'Space' && game.state === 'IDLE') {
-    e.preventDefault(); Audio.init();
+    e.preventDefault(); Audio.init(); game._hideRanking();
     const save = game._loadGame();
     if (save && save.level >= 1) { game.resumeGame(save); }
     else { game.state = 'READY'; game.readyTimer = 0.9; game._readySoundPlayed = true; game.hideOverlay(true); Audio.gameStart(); }
     return;
   }
 
-  // FIX 4 — N funciona em IDLE e GAMEOVER
+  // N: novo jogo em IDLE e GAMEOVER
   if (e.code === 'KeyN' && (game.state === 'IDLE' || game.state === 'GAMEOVER')) {
-    e.preventDefault(); game._clearSave();
+    e.preventDefault(); game._clearSave(); game._hideRanking();
     if (game.state === 'GAMEOVER') { game.init(1); }
     else { game._showIdleOverlay(); }
     return;
@@ -1271,9 +1314,9 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // FIX 4 — R: Reiniciar no GAMEOVER
-  if (e.code === 'KeyR' && game.state === 'GAMEOVER') {
-    e.preventDefault(); game._clearSave(); game.init(1); return;
+  // R: Mostrar ranking em IDLE, PAUSED e GAMEOVER
+  if (e.code === 'KeyR' && (game.state === 'IDLE' || game.state === 'PAUSED' || game.state === 'GAMEOVER')) {
+    e.preventDefault(); game._showRanking(); return;
   }
 
   // Space no GAMEOVER sem save
@@ -1283,6 +1326,9 @@ document.addEventListener('keydown', e => {
     if (save) { game.resumeGame(save); } else { game.init(1); }
     return;
   }
+
+  // Escape fecha ranking
+  if (e.code === 'Escape') { e.preventDefault(); game._hideRanking(); return; }
 
   if (e.code === 'Space' && game.state === 'INTRO') { e.preventDefault(); game._finishIntro(); return; }
 
@@ -1295,17 +1341,11 @@ document.addEventListener('keydown', e => {
 const authScreen = document.getElementById('auth-screen');
 const gameScreen = document.getElementById('game-screen');
 
-async function fetchScores() {
-  try { const res = await fetch('/api/scores?limit=10'); const scores = await res.json(); const list = document.getElementById('scores-list'); if (!list) return;
-    if (!scores.length) { list.innerHTML = '<li style="color:#555;">Nenhuma pontuação ainda</li>'; return; }
-    list.innerHTML = scores.map((s, i) => { const medals = ['🥇', '🥈', '🥉']; const medal = i < 3 ? medals[i] + ' ' : ''; const rank = i >= 3 ? `${i + 1}. ` : ''; const date = new Date(s.created_at + 'Z').toLocaleDateString('pt-BR'); return `<li>${rank}${medal}<span style="color:#ffcc00;font-weight:bold">${s.score.toLocaleString()}</span> <span style="color:#888">${s.player_email}</span> <span style="color:#555;font-size:11px">${date}</span></li>`; }).join('');
-  } catch (_) {}
-}function showGame() {
+function showGame() {
   authScreen.style.display = 'none'; gameScreen.style.display = 'flex';
-  Audio.init(); fetchScores();
+  Audio.init();
   const save = game._loadGame();
   if (save && save.level >= 1) {
-    // Inicializa o jogo com o mapa do save para renderizar corretamente
     game.init(save.level);
     game.score = save.score; game.lives = save.lives;
     game.fruitIndex = save.fruitIndex || 0;
@@ -1315,6 +1355,7 @@ async function fetchScores() {
   } else {
     game.init(1);
   }
+  // Ranking auto-opens in _finishIntro() when state becomes IDLE
 }
 
 function showAuth() { authScreen.style.display = 'flex'; gameScreen.style.display = 'none'; }
@@ -1331,6 +1372,7 @@ document.getElementById('logout-btn').onclick = () => { localStorage.removeItem(
   function handleStart() {
     if (!debounce()) return; Audio.init();
     if (game.state === 'IDLE') {
+      game._hideRanking();
       const save = game._loadGame();
       if (save && save.level >= 1) { game.resumeGame(save); }
       else { game.state = 'READY'; game.readyTimer = 0.9; game._readySoundPlayed = true; game.hideOverlay(true); Audio.gameStart(); }
