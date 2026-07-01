@@ -243,6 +243,12 @@ Capturas de tela do jogo em diferentes estados. Para gerar as screenshots, execu
 
 > Tela de Game Over com opções de continuar (C) ou reiniciar (N).
 
+### 🏆 Ranking
+
+<img src="screenshots/09-ranking.png" alt="Tela de Ranking" width="420">
+
+> Tela com as 10 melhores pontuações registradas.
+
 ### 📸 Como Capturar Screenshots
 
 ```bash
