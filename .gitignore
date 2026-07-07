@@ -10,12 +10,30 @@ pacman-data/
 *.db-wal
 *.db-shm
 
+# Ambiente Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+
+# Caches de teste
+.pytest_cache/
+
 # Arquivos de configuração do ambiente local e chaves
 .env
 .env.local
 .env.production
 .vscode/
 .idea/
+
+# Assets de build
+dist/
+build/
+
+# Logs
+*.log
 
 # Arquivos do sistema operacional
 .DS_Store

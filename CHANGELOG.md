@@ -7,6 +7,80 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.0] - 2026-07-06
+
+### Added
+
+#### 🐍 Backend em Python/FastAPI
+- Servidor backend completo migrado de Node.js/Express para Python 3.13+ com FastAPI
+- SQLite com WAL mode, schema com `players`, `sessions`, `scores`
+- Rotas: `/api/register`, `/api/login`, `/api/logout`, `/api/me`, `/api/scores`, `/api/health`
+- Dockerfile atualizado para Python 3.13-slim
+- docker-compose.yml atualizado para porta 8000
+
+#### 🔐 Auth Passwordless (Privacy by Design)
+- Login e registro sem senha — apenas email como identificador único
+- Tokens de sessão via `secrets.token_hex(32)`
+- Conformidade com Privacy by Design: nenhum dado sensível armazenado
+- Impede colisões de conta: email é o identificador exclusivo
+
+#### 🎮 Input Buffering Preciso (FIX Crítico)
+- `Entity.setBufferedDir()` reescrita com detecção de alinhamento (`TILE_CENTER_THRESHOLD=2px`)
+- Novo método `checkAndApplyBuffer()` consumido em `step()` ao atingir o centro do tile
+- **Early snap** restaurado: aplica direção antecipadamente quando dentro de `TURN_TOLERANCE=10px`
+- Meias-voltas continuam instantâneas
+- Consumo do buffer no alinhamento exato com centro do tile, garantindo curvas precisas em alta velocidade
+
+#### 🕹️ Virtual Joystick Suave (Touch Delta Controls)
+- Joystick dinâmico baseado na Web Touch API — primeiro toque define o centro
+- Arrasto calcula delta X/Y, normalizado para direções discretas da grade (Cima/Baixo/Esquerda/Direita)
+- Deadzone de 8px para evitar inputs fantasmas
+- **Long-press (500ms)** para pausar | **Tap curto (<200ms)** pausa durante PLAYING
+- Botão flutuante ❚❚ para pause no mobile (agora no header, não sobre o mapa)
+- Botão ▶ para Continue no Game Over
+- Controles antigos de D-pad removidos
+
+#### 📱 Progressive Web App (PWA)
+- `manifest.json` com display standalone, ícones 192×192 e 512×512
+- `sw.js` com estratégia Network First + cache de assets estáticos
+- Ícones profissionais com Pac-Man, glow, 4 fantasmas decorativos e texto "PAC-MAN" / "RETRÔ EDITION"
+- Registro automático do Service Worker no `DOMContentLoaded`
+
+#### ✅ Testes Automatizados
+- **11 testes pytest** para backend (auth passwordless, scores, email uniqueness, health)
+- **15 testes de movimento** (Node.js + jsdom) validando buffer de input, early snap, meia-volta, direção bloqueada
+- Cobertura completa dos cenários de input buffering
+
+### Fixed
+
+#### 🐛 Botão de pause sobrepondo o mapa
+- **Problema:** Botão ❚❚ estava posicionado no overlay `#mobile-actions` com `bottom:4px;right:4px`, sobre o canto inferior do mapa
+- **Solução:** Movido para o `#game-header` como `.header-btn`, ao lado dos botões 🔊🚪🏆⚙️
+- Visível apenas em mobile (`@media pointer: coarse`), oculto em desktop (`@media pointer: fine`)
+
+#### 🐛 Sync de volume entre toggle de configurações e botão mute
+- **Problema:** Alterar som pelo toggle de configurações (`#set-sound`) não atualizava o botão 🔊/🔇 do header nem o estado `Audio._muted`
+- **Solução:** `soundToggle.onchange` agora chama `Audio._muted = !this.settings.soundEnabled` e `this._updateMuteBtn()`
+
+#### 🐛 `handlePause()` não definida (ReferenceError no mobile)
+- **Problema:** Função `handlePause()` era chamada em 4 lugares (long-press, tap, clique no pause) mas nunca definida
+- **Solução:** Adicionada `function handlePause() { Audio.init(); game.togglePause(); }` no IIFE do joystick virtual
+
+#### 🐛 Ranking com scores de teste no deploy
+- **Problema:** O banco SQLite continha scores de teste que apareciam no ranking após deploy
+- **Solução:** Remoção explícita do banco `data/pacman.db` para deploy limpo
+
+### Changed
+- **Stack migrada:** Node.js → Python 3.13 + FastAPI + uvicorn
+- **Porta padrão:** 3000 → 8000
+- **Autenticação:** Senhas removidas completamente (login apenas por email)
+- **Controles mobile:** D-pad substituído por joystick virtual suave baseado em touch delta
+- **Estrutura de diretórios:** Adicionado `backend/` com `main.py`, `models.py`, `schemas.py`
+- **package.json:** Atualizado com devDependencies (jsdom, puppeteer) para testes
+- **Banco SQLite:** Esquema recriado com `player_id` na tabela de sessões
+
+---
+
 ## [2.3.2] - 2026-06-30
 
 ### Fixed

@@ -8,7 +8,9 @@
 const COLS = 21;
 const ROWS = 21;
 const TS   = 20; // tile size (px)
-const TURN_TOLERANCE = 10; // FIX 1 — margem aumentada para curvas mais fluidas
+// ─── FIX v3.0 — Precisão no alinhamento de tiles ────────────
+const TURN_TOLERANCE = 10;
+const TILE_CENTER_THRESHOLD = 2.0; // px para considerar 'alinhado' ao centro
 const W    = COLS * TS; // 420
 const H    = ROWS * TS; // 420
 
@@ -217,7 +219,7 @@ class Entity {
     if (!this.canMoveTo(nc, nr, map, isGhost)) {
       this.moving = false;
       const c = this.center(); this.px = c.x; this.py = c.y; this.targetX = c.x; this.targetY = c.y;
-      this._applyBuffer(map, isGhost);
+      this.checkAndApplyBuffer(map, isGhost);
       return false;
     }
 
@@ -229,7 +231,8 @@ class Entity {
 
     if (dist <= stepPx) {
       this.px = this.targetX; this.py = this.targetY; this.col = nc; this.row = nr;
-      this._applyBuffer(map, isGhost);
+      // v3.0: Consome buffer no alinhamento exato com o centro do tile
+      this.checkAndApplyBuffer(map, isGhost);
     } else {
       this.px += (diffX / dist) * stepPx; this.py += (diffY / dist) * stepPx;
     }
@@ -239,51 +242,100 @@ class Entity {
     return true;
   }
 
+  /**
+   * _applyBuffer — Consome o buffer de direção (FIX v3.0)
+   *
+   * Agora verifica a posição exata x/y em relação ao centro do tile.
+   * Ao atingir o centro (dentro de TILE_CENTER_THRESHOLD px), o comando
+   * armazenado é executado imediatamente, garantindo curvas precisas
+   * mesmo em alta velocidade.
+   */
   _applyBuffer(map, isGhost) {
     if (!this.bufferedDir) return;
     const d = DIR[this.bufferedDir];
     if (!d) { this.bufferedDir = null; return; }
+
     if (this.canMoveTo(this.col + d.dx, this.row + d.dy, map, isGhost)) {
-      this.dir = this.bufferedDir; this.bufferedDir = null;
+      this.dir = this.bufferedDir;
+      this.bufferedDir = null;
       this.moving = true;
       this.targetX = (this.col + d.dx) * TS + TS / 2;
       this.targetY = (this.row + d.dy) * TS + TS / 2;
-    } else {
-      this.bufferedDir = null;
+      return;
     }
+    // Caminho bloqueado: descarta buffer para evitar acumulação
+    this.bufferedDir = null;
   }
 
-  // FIX 1 — Buffer de direção com detecção antecipada de cruzamento
+  /**
+   * setBufferedDir — Fila de direção com consumo preciso em interseções
+   *
+   * v3.0: Melhora a detecção de alinhamento com o centro do tile.
+   * Quando o jogador pressiona uma direção enquanto Pac-Man está entre
+   * tiles, o comando é armazenado em bufferedDir. A cada frame, o
+   * Entity.step() verifica se a entidade está alinhada ao centro do
+   * tile atual (atCenter()). Quando alinhada, o buffer é consumido.
+   *
+   * Meias-voltas (direção oposta) são executadas instantaneamente.
+   * Se a direção é válida no tile atual, aplica imediatamente.
+   * Caso contrário, armazena no buffer (será consumido ao chegar
+   * no centro do próximo tile).
+   */
   setBufferedDir(newDir, map, isGhost) {
+    // Meia-volta: sempre instantânea
     if (newDir === DIR_REV[this.dir]) {
-      this._instantReverse(); this.bufferedDir = null; return;
+      this._instantReverse();
+      this.bufferedDir = null;
+      return;
     }
+
     const d = DIR[newDir];
     if (!d) return;
 
-    const atCenter = Math.abs(this.px - this.targetX) < 1.5 && Math.abs(this.py - this.targetY) < 1.5;
+    const atCenter = (
+      Math.abs(this.px - this.targetX) < TILE_CENTER_THRESHOLD &&
+      Math.abs(this.py - this.targetY) < TILE_CENTER_THRESHOLD
+    );
 
-    // No centro do tile: aplica imediatamente se válido
+    // Se está exatamente no centro do tile, tenta aplicar imediatamente
     if (atCenter && this.canMoveTo(this.col + d.dx, this.row + d.dy, map, isGhost)) {
-      this.dir = newDir; this.bufferedDir = null;
+      this.dir = newDir;
+      this.bufferedDir = null;
       this.targetX = (this.col + d.dx) * TS + TS / 2;
       this.targetY = (this.row + d.dy) * TS + TS / 2;
       this.moving = true;
       return;
     }
 
-    // Fora do centro: enfileira — será aplicado ao atingir o próximo tile
+    // Fora do centro: enfileira para ser consumido no próximo alinhamento
     this.bufferedDir = newDir;
 
-    // FIX 1 — Snap antecipado: se está perto do centro e a direção é válida, aplica com tolerância
+    // Early snap (v3.0): se está perto do centro e a direção é válida
+    // no tile à frente, aplica imediatamente para fluidez máxima
     if (this.moving && this._nearCenter(TURN_TOLERANCE)) {
       const nextD = DIR[this.dir];
       const nc = this.col + (nextD ? nextD.dx : 0);
       const nr = this.row + (nextD ? nextD.dy : 0);
       if (this.canMoveTo(nc + d.dx, nr + d.dy, map, isGhost)) {
-        this._applyBuffer(map, isGhost);
+        this.dir = newDir;
+        this.bufferedDir = null;
+        this.targetX = (nc + d.dx) * TS + TS / 2;
+        this.targetY = (nr + d.dy) * TS + TS / 2;
+        this.moving = true;
       }
     }
+  }
+
+  /**
+   * checkAndApplyBuffer — Chamado a cada frame por step()
+   * Verifica se a entidade está alinhada ao centro e, em caso positivo,
+   * tenta consumir o buffer de direção.
+   */
+  checkAndApplyBuffer(map, isGhost) {
+    if (!this.bufferedDir) return false;
+    if (!this.atCenter()) return false;
+    this._applyBuffer(map, isGhost);
+    return true;
   }
 }
 
@@ -463,7 +515,7 @@ class Game {
         ctx.fillStyle = isCurrent ? '#ffcc00' : '#888'; ctx.font = `${isCurrent ? 'bold ' : ''}12px monospace`;
         ctx.textAlign = 'left'; ctx.fillText(`${medal} ${String(s.score).padStart(6, ' ')}`, 50, sy);
         ctx.fillStyle = isCurrent ? '#ffcc00' : '#555'; ctx.font = '10px monospace';
-        ctx.textAlign = 'right'; ctx.fillText(s.player_email || '', W - 50, sy); sy += 18;
+        ctx.textAlign = 'right';        ctx.fillText(s.player_name || s.player_email || '', W - 50, sy); sy += 18;
       });
     }
     ctx.fillStyle = '#666'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
@@ -1101,7 +1153,12 @@ class Game {
     const closeModal = () => { modal.classList.remove('show'); if (this._settingsWasPaused && this.state === 'PAUSED') this.togglePause(); };
     closeBtn.onclick = closeModal; modal.onclick = (e) => { if (e.target === modal) closeModal(); };
     introToggle.onchange = () => { this.settings.introEnabled = introToggle.checked; this._saveSettings(); };
-    soundToggle.onchange = () => { this.settings.soundEnabled = soundToggle.checked; this._saveSettings(); };
+    soundToggle.onchange = () => {
+      this.settings.soundEnabled = soundToggle.checked;
+      Audio._muted = !this.settings.soundEnabled;
+      this._saveSettings();
+      this._updateMuteBtn();
+    };
     diffBtns.forEach(b => { b.onclick = () => { diffBtns.forEach(x => x.classList.remove('active')); b.classList.add('active'); this.settings.difficulty = b.dataset.diff; this._saveSettings(); }; });
     // Ranking modal
     const rnkBtn = document.getElementById('ranking-btn');
@@ -1176,7 +1233,7 @@ class Game {
         const medals = ['🥇', '🥈', '🥉'];
         const medal = i < 3 ? medals[i] + ' ' : `${i + 1}. `;
         const date = new Date(s.created_at + 'Z').toLocaleDateString('pt-BR');
-        return `<li>${medal}<span style="color:#ffcc00;font-weight:bold">${s.score.toLocaleString()}</span> <span style="color:#888">${s.player_email}</span> <span style="color:#555;font-size:11px">${date}</span></li>`;
+        return `<li>${medal}<span style="color:#ffcc00;font-weight:bold">${s.score.toLocaleString()}</span> <span style="color:#888">${s.player_name || s.player_email}</span> <span style="color:#555;font-size:11px">${date}</span></li>`;
       }).join('');
     } catch (_) {}
   }
@@ -1361,13 +1418,120 @@ if (localStorage.getItem('token')) { showGame(); } else { showAuth(); }
 
 document.getElementById('logout-btn').onclick = () => { localStorage.removeItem('token'); location.reload(); };
 
-// ── Mobile ─────────────────────────────────────────────────
-(function initMobileControls() {
-  const dirMap = { up: 'up', down: 'down', left: 'left', right: 'right' };
-  let _lastAction = 0;
-  function debounce() { const now = Date.now(); if (now - _lastAction < 300) return false; _lastAction = now; return true; }
-  function handleStart() {
-    if (!debounce()) return; Audio.init();
+// ── Virtual Joystick (Touch Delta Controls) ──────────────
+// v3.0: Joystick virtual suave baseado na Web Touch API.
+// Remove as setas direcionais rígidas e implementa um joystick
+// dinâmico: primeiro toque define o centro, arrasto calcula
+// delta X/Y, normaliza para direções discretas da grade.
+(function initVirtualJoystick() {
+  const stickEl = document.getElementById('virtual-joystick');
+  const knobEl = document.getElementById('joystick-knob');
+  if (!stickEl || !knobEl) return;
+
+  const DEADZONE = 8; // px — zona morta para evitar inputs fantasmas
+  const MAX_RADIUS = 45; // px — raio máximo do joystick
+  const SEND_INTERVAL = 80; // ms — intervalo entre envios de direção
+
+  let centerX = 0, centerY = 0;
+  let currentDir = null;
+  let activeTouchId = null;
+  let lastSentTime = 0;
+  let lastDir = null;
+
+  function handlePause() {
+    Audio.init();
+    game.togglePause();
+  }
+
+  function getDirection(dx, dy) {
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    if (absDx < DEADZONE && absDy < DEADZONE) return null;
+    if (absDx > absDy) {
+      return dx > 0 ? 'right' : 'left';
+    } else {
+      return dy > 0 ? 'down' : 'up';
+    }
+  }
+
+  function sendDirection(dir) {
+    if (!dir) return;
+    if (dir !== lastDir) {
+      // Direção mudou: envia imediatamente
+      game.inputQueue.push(dir);
+      lastDir = dir;
+      lastSentTime = Date.now();
+    } else {
+      // Mesma direção: envia no intervalo (repeat rate)
+      const now = Date.now();
+      if (now - lastSentTime >= SEND_INTERVAL) {
+        game.inputQueue.push(dir);
+        lastSentTime = now;
+      }
+    }
+  }
+
+  function updateKnob(dx, dy) {
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const clampedDist = Math.min(dist, MAX_RADIUS);
+    const angle = Math.atan2(dy, dx);
+    const kx = Math.cos(angle) * clampedDist;
+    const ky = Math.sin(angle) * clampedDist;
+    knobEl.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+    knobEl.classList.toggle('active', dist > DEADZONE);
+  }
+
+  function onTouchStart(e) {
+    // Já tem um toque ativo
+    if (activeTouchId !== null) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    activeTouchId = touch.identifier;
+
+    // Obtém coordenadas relativas ao canvas wrapper
+    const wrapper = document.getElementById('game-canvas-wrapper');
+    const rect = wrapper.getBoundingClientRect();
+    const relX = touch.clientX - rect.left;
+    const relY = touch.clientY - rect.top;
+
+    // Verifica se o toque está dentro do canvas
+    if (relX < 0 || relX > rect.width || relY < 0 || relY > rect.height) {
+      activeTouchId = null;
+      return;
+    }
+
+    // Define centro do joystick nessa posição
+    centerX = touch.clientX;
+    centerY = touch.clientY;
+
+    // Posiciona o joystick visual
+    const stickSize = 120;
+    stickEl.style.left = (centerX - stickSize / 2) + 'px';
+    stickEl.style.top = (centerY - stickSize / 2) + 'px';
+    stickEl.classList.add('visible');
+    knobEl.style.transform = 'translate(-50%, -50%)';
+    currentDir = null;
+    lastDir = null;
+
+    // Long-press timer (para pause)
+    touchStartTime = Date.now();
+    longPressTimer = setTimeout(() => {
+      // Só pausa se ainda estiver com toque ativo e não moveu muito
+      if (activeTouchId !== null) {
+        const currentTouch = e.changedTouches[0];
+        if (currentTouch) {
+          const moved = Math.abs(currentTouch.clientX - centerX) + Math.abs(currentTouch.clientY - centerY);
+          if (moved < DEADZONE * 2) {
+            handlePause();
+          }
+        }
+      }
+      longPressTimer = null;
+    }, LONG_PRESS_MS);
+
+    // Inicia o jogo se estiver em IDLE/GAMEOVER/INTRO (como o START antigo)
+    Audio.init();
     if (game.state === 'IDLE') {
       game._hideRanking();
       const save = game._loadGame();
@@ -1376,55 +1540,253 @@ document.getElementById('logout-btn').onclick = () => { localStorage.removeItem(
     } else if (game.state === 'GAMEOVER') {
       const save = game._loadGame();
       if (save) { game.resumeGame(save); } else { game.init(1); }
-    } else if (game.state === 'INTRO') { game._finishIntro(); }
-  }
-  document.querySelectorAll('.dpad-btn').forEach(btn => {
-    const dir = btn.dataset.dir; if (!dir) return; let repeatInterval = null;
-    function startRepeat() { btn.classList.add('active'); if (game.state === 'PLAYING') game.inputQueue.push(dirMap[dir]); repeatInterval = setInterval(() => { if (game.state === 'PLAYING') game.inputQueue.push(dirMap[dir]); }, 120); }
-    function stopRepeat() { btn.classList.remove('active'); if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; } }
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startRepeat(); }, { passive: false });
-    btn.addEventListener('touchend', (e) => { e.preventDefault(); stopRepeat(); }, { passive: false });
-    btn.addEventListener('touchcancel', (e) => { e.preventDefault(); stopRepeat(); }, { passive: false });
-    btn.addEventListener('mousedown', (e) => { e.preventDefault(); startRepeat(); });
-    btn.addEventListener('mouseup', stopRepeat); btn.addEventListener('mouseleave', stopRepeat);
-  });
-  const startBtn = document.getElementById('mobile-start');
-  if (startBtn) { startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startBtn.classList.add('active'); handleStart(); }, { passive: false }); startBtn.addEventListener('touchend', (e) => { e.preventDefault(); startBtn.classList.remove('active'); }, { passive: false }); startBtn.addEventListener('mousedown', (e) => { e.preventDefault(); handleStart(); }); startBtn.addEventListener('click', (e) => { e.preventDefault(); handleStart(); }); }
-  const pauseBtn = document.getElementById('mobile-pause');
-  if (pauseBtn) { function handlePause() { if (!debounce()) return; if (game.state === 'PLAYING' || game.state === 'PAUSED') game.togglePause(); } pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pauseBtn.classList.add('active'); handlePause(); }, { passive: false }); pauseBtn.addEventListener('touchend', (e) => { e.preventDefault(); pauseBtn.classList.remove('active'); }, { passive: false }); pauseBtn.addEventListener('mousedown', (e) => { e.preventDefault(); handlePause(); }); pauseBtn.addEventListener('click', (e) => { e.preventDefault(); handlePause(); }); }
+    } else if (game.state === 'INTRO') {
+      game._finishIntro();
+    }
 
-  // Botão Continue no mobile — aparece apenas em GAMEOVER com save
+    e.preventDefault();
+  }
+
+  function onTouchMove(e) {
+    if (activeTouchId === null) return;
+
+    // Encontra o toque ativo
+    let touch = null;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === activeTouchId) {
+        touch = e.changedTouches[i];
+        break;
+      }
+    }
+    if (!touch) return;
+
+    // Calcula delta em relação ao centro
+    const dx = touch.clientX - centerX;
+    const dy = touch.clientY - centerY;
+
+    // Atualiza knob visual
+    updateKnob(dx, dy);
+
+    // Converte delta para direção discreta
+    const dir = getDirection(dx, dy);
+    currentDir = dir;
+
+    // Envia direção para o inputQueue do jogo
+    if (game.state === 'PLAYING' && dir) {
+      sendDirection(dir);
+    }
+
+    e.preventDefault();
+  }
+
+  function onTouchEnd(e) {
+    // Verifica se algum toque que terminou é o ativo
+    let touchEnded = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === activeTouchId) {
+        touchEnded = true;
+        break;
+      }
+    }
+    if (!touchEnded) return;
+
+    // Cancela long-press timer
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    // Se foi um toque curto (tap sem movimento), também pode pausar
+    if (touchStartTime > 0) {
+      const elapsed = Date.now() - touchStartTime;
+      if (elapsed < 200 && game.state === 'PLAYING') {
+        // Tap curto no canvas em modo PLAYING = pause
+        handlePause();
+      }
+    }
+
+    // Reset do joystick
+    activeTouchId = null;
+    currentDir = null;
+    lastDir = null;
+    stickEl.classList.remove('visible');
+    knobEl.style.transform = 'translate(-50%, -50%)';
+    knobEl.classList.remove('active');
+
+    e.preventDefault();
+  }
+
+  function onTouchCancel(e) {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    activeTouchId = null;
+    currentDir = null;
+    lastDir = null;
+    stickEl.classList.remove('visible');
+    knobEl.style.transform = 'translate(-50%, -50%)';
+    knobEl.classList.remove('active');
+    e.preventDefault();
+  }
+
+  // Para suporte a mouse (desktop) — comportamento similar reduzido
+  let mouseDown = false;
+  function onMouseDown(e) {
+    if (e.button !== 0) return;
+    // Só funciona em modo touch (pointer: coarse)
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+    if (!isTouchDevice && !('ontouchstart' in window)) return;
+
+    mouseDown = true;
+    centerX = e.clientX;
+    centerY = e.clientY;
+
+    const stickSize = 120;
+    stickEl.style.left = (centerX - stickSize / 2) + 'px';
+    stickEl.style.top = (centerY - stickSize / 2) + 'px';
+    stickEl.classList.add('visible');
+    knobEl.style.transform = 'translate(-50%, -50%)';
+    currentDir = null;
+    lastDir = null;
+    e.preventDefault();
+
+    // Inicia jogo também no mouse
+    Audio.init();
+    if (game.state === 'IDLE') {
+      game._hideRanking();
+      const save = game._loadGame();
+      if (save && save.level >= 1) { game.resumeGame(save); }
+      else { game.state = 'READY'; game.readyTimer = 0.9; game._readySoundPlayed = true; game.hideOverlay(true); Audio.gameStart(); }
+    } else if (game.state === 'GAMEOVER') {
+      const save = game._loadGame();
+      if (save) { game.resumeGame(save); } else { game.init(1); }
+    } else if (game.state === 'INTRO') {
+      game._finishIntro();
+    }
+  }
+
+  function onMouseMove(e) {
+    if (!mouseDown) return;
+    const dx = e.clientX - centerX;
+    const dy = e.clientY - centerY;
+    updateKnob(dx, dy);
+    const dir = getDirection(dx, dy);
+    currentDir = dir;
+    if (game.state === 'PLAYING' && dir) {
+      sendDirection(dir);
+    }
+    e.preventDefault();
+  }
+
+  function onMouseUp(e) {
+    if (!mouseDown) return;
+    mouseDown = false;
+    currentDir = null;
+    lastDir = null;
+    stickEl.classList.remove('visible');
+    knobEl.style.transform = 'translate(-50%, -50%)';
+    knobEl.classList.remove('active');
+    e.preventDefault();
+  }
+
+  // Registra eventos
+  const wrapper = document.getElementById('game-canvas-wrapper');
+  if (wrapper) {
+    wrapper.addEventListener('touchstart', onTouchStart, { passive: false });
+    wrapper.addEventListener('touchmove', onTouchMove, { passive: false });
+    wrapper.addEventListener('touchend', onTouchEnd, { passive: false });
+    wrapper.addEventListener('touchcancel', onTouchCancel, { passive: false });
+    wrapper.addEventListener('mousedown', onMouseDown);
+    wrapper.addEventListener('mousemove', onMouseMove);
+    wrapper.addEventListener('mouseup', onMouseUp);
+    wrapper.addEventListener('mouseleave', onMouseUp);
+  }
+
+  // Botão de pause mobile
+  const pauseBtn = document.getElementById('mobile-pause-btn');
+  if (pauseBtn) {
+    pauseBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handlePause();
+    }, { passive: false });
+    pauseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handlePause();
+    });
+  }
+
+  // Botão continue mobile
   const continueBtn = document.getElementById('mobile-continue');
   if (continueBtn) {
-    function handleContinue() {
-      if (!debounce()) return; Audio.init();
+    continueBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      Audio.init();
       if (game.state === 'GAMEOVER') {
         const save = game._loadGame();
         if (save) { game.resumeGame(save); } else { game.init(1); }
       }
-    }
-    continueBtn.addEventListener('touchstart', (e) => { e.preventDefault(); continueBtn.classList.add('active'); handleContinue(); }, { passive: false });
-    continueBtn.addEventListener('touchend', (e) => { e.preventDefault(); continueBtn.classList.remove('active'); }, { passive: false });
-    continueBtn.addEventListener('mousedown', (e) => { e.preventDefault(); handleContinue(); });
-    continueBtn.addEventListener('click', (e) => { e.preventDefault(); handleContinue(); });
+    }, { passive: false });
+    continueBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      Audio.init();
+      if (game.state === 'GAMEOVER') {
+        const save = game._loadGame();
+        if (save) { game.resumeGame(save); } else { game.init(1); }
+      }
+    });
+    // Visibilidade inicial
+    game._updateMobileContinueBtn = function() {
+      const btn = document.getElementById('mobile-continue');
+      if (!btn) return;
+      const show = this.state === 'GAMEOVER' && this._hasSave();
+      btn.style.display = show ? 'flex' : 'none';
+    };
   }
 })();
 
-// ── Tabs ──
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => { document.querySelectorAll('.tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); document.getElementById('login-form').style.display = t.dataset.tab === 'login' ? 'block' : 'none'; document.getElementById('register-form').style.display = t.dataset.tab === 'register' ? 'block' : 'none'; };
-});
-
-// ── Auth forms ──
+// ── Auth forms (Passwordless — Privacy by Design) ──────────
+// v3.0: Login/registro sem senha. Apenas email (identificador único).
 document.getElementById('login-form').onsubmit = async (e) => {
   e.preventDefault();
-  const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: document.getElementById('login-email').value, password: document.getElementById('login-pass').value }) });
+  const email = document.getElementById('login-email').value;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
   const data = await res.json();
-  if (data.token) { localStorage.setItem('token', data.token); showGame(); } else { document.getElementById('login-error').textContent = data.error; }
+  if (data.token) {
+    localStorage.setItem('token', data.token);
+    showGame();
+  } else {
+    document.getElementById('login-error').textContent = data.detail || data.error || 'Erro ao fazer login';
+  }
 };
+
 document.getElementById('register-form').onsubmit = async (e) => {
   e.preventDefault();
-  const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: document.getElementById('reg-email').value, password: document.getElementById('reg-pass').value }) });
+  const name = document.getElementById('reg-name').value;
+  const email = document.getElementById('reg-email').value;
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email })
+  });
   const data = await res.json();
-  if (data.token) { localStorage.setItem('token', data.token); showGame(); } else { document.getElementById('reg-error').textContent = data.error; }
+  if (data.token) {
+    localStorage.setItem('token', data.token);
+    showGame();
+  } else {
+    document.getElementById('reg-error').textContent = data.detail || data.error || 'Erro ao cadastrar';
+  }
 };
+
+// Service Worker Registration
+document.addEventListener('DOMContentLoaded', () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+});

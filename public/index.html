@@ -2,10 +2,21 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="manifest.json">
   <title>Pac-Man Retrô</title>
   <style>
+    /* ═══════════════════════════════════════════════════════════
+       PAC-MAN RETRÔ v3.0 — ProntaCorp S.A.
+       ═══════════════════════════════════════════════════════════ */
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
     body {
       background: #0a0a0a;
       color: #fff;
@@ -14,6 +25,8 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      min-height: 100dvh;
+      overflow: hidden;
     }
 
     /* ── Tela de autenticação ── */
@@ -23,6 +36,7 @@
       align-items: center;
       width: 100%;
       min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .auth-box {
@@ -39,25 +53,23 @@
       font-size: 36px;
       color: #ffcc00;
       letter-spacing: 6px;
-      margin-bottom: 24px;
+      margin-bottom: 6px;
       text-shadow: 0 0 10px #ffcc00;
     }
 
-    #auth-tabs { display: flex; gap: 0; margin-bottom: 20px; }
-    .tab {
-      flex: 1;
-      padding: 8px;
-      background: #222;
-      border: 1px solid #333;
+    .auth-box .subtitle {
+      font-size: 12px;
       color: #888;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 14px;
-      transition: .2s;
+      letter-spacing: 2px;
+      margin-bottom: 24px;
     }
-    .tab.active { background: #ffcc00; color: #111; border-color: #ffcc00; font-weight: bold; }
-    .tab:first-child { border-radius: 4px 0 0 4px; }
-    .tab:last-child  { border-radius: 0 4px 4px 0; }
+
+    .auth-box .privacy-note {
+      font-size: 10px;
+      color: #555;
+      margin-bottom: 18px;
+      line-height: 1.4;
+    }
 
     .auth-box input {
       width: 100%;
@@ -89,22 +101,36 @@
     }
     .auth-box button[type="submit"]:hover { background: #ffdd33; }
     .error { color: #ff4444; font-size: 13px; margin-top: 8px; min-height: 20px; }
-    .success { color: #44ff44; font-size: 13px; margin-top: 8px; }
+
+    .auth-footer {
+      margin-top: 20px;
+      border-top: 1px solid #222;
+      padding-top: 14px;
+    }
+    .auth-footer span {
+      display: block;
+      color: #888;
+      font-size: 9px;
+      letter-spacing: 1px;
+      line-height: 1.5;
+    }
+    .auth-footer .corp { color: #ffcc00; font-size: 10px; font-weight: bold; }
 
     /* ── Tela do jogo ── */
     #game-screen {
       display: none;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
-      padding: 20px;
+      gap: 6px;
+      padding: 8px;
+      width: 100%;
+      max-width: 500px;
     }
 
     #copyright-bar {
       width: 100%;
-      max-width: 420px;
       text-align: center;
-      padding: 4px 0 2px;
+      padding: 2px 0;
     }
     #copyright-bar .cp-title {
       color: #666;
@@ -126,30 +152,56 @@
     #game-header {
       display: flex;
       align-items: center;
-      gap: 24px;
-      font-size: 16px;
+      gap: 8px;
+      font-size: 14px;
       color: #ffcc00;
       letter-spacing: 1px;
+      width: 100%;
+      max-width: 420px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
-    #game-header span { min-width: 120px; text-align: center; }
+    #game-header .stat {
+      min-width: 80px;
+      text-align: center;
+      font-size: 13px;
+    }
+    #game-header .stat small {
+      color: #888;
+      font-size: 9px;
+      display: block;
+    }
 
-    #logout-btn {
-      padding: 6px 16px;
+    .header-btn {
+      padding: 4px 8px;
       background: #333;
       color: #ffcc00;
       border: 1px solid #ffcc00;
       border-radius: 4px;
       font-family: inherit;
+      font-size: 14px;
       cursor: pointer;
       transition: .2s;
+      line-height: 1;
     }
-    #logout-btn:hover { background: #ffcc00; color: #111; }
+    .header-btn:hover { background: #ffcc00; color: #111; }
+    .header-btn.muted { opacity: 0.5; border-color: #666; color: #888; }
 
     #game-canvas {
       border: 2px solid #2121de;
       border-radius: 4px;
       image-rendering: pixelated;
       background: #000;
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      touch-action: none;
+    }
+
+    #game-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
     }
 
     #game-overlay {
@@ -167,54 +219,115 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity .3s;
+      border-radius: 4px;
     }
     #game-overlay.show { opacity: 1; pointer-events: auto; }
     #game-overlay small { font-size: 14px; color: #ffcc00; margin-top: 12px; }
 
-    /* ── Botão de configurações ── */
-    #settings-btn {
+    /* ── Virtual Joystick ── */
+    #virtual-joystick {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,204,0,0.2);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 10;
+      will-change: transform;
+    }
+    #virtual-joystick.visible {
+      opacity: 1;
+    }
+    #joystick-knob {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,204,0,0.4);
+      border: 2px solid rgba(255,204,0,0.6);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      will-change: transform;
+      transition: background 0.1s ease;
+    }
+    #joystick-knob.active {
+      background: rgba(255,204,0,0.7);
+      border-color: #ffcc00;
+    }
+
+    #joystick-hint {
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.3);
+      font-size: 8px;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* ── Old D-pad hidden by default ── */
+    #mobile-controls-old {
+      display: none !important;
+    }
+
+    /* ── Keyboard Hints ── */
+    #keyboard-hints {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
       padding: 6px 12px;
-      background: #333;
-      color: #ffcc00;
-      border: 1px solid #ffcc00;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 16px;
-      cursor: pointer;
-      transition: .2s;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      justify-content: center;
     }
-    #settings-btn:hover { background: #ffcc00; color: #111; }
-
-    #ranking-btn {
-      padding: 6px 12px;
-      background: #333;
-      color: #ffcc00;
-      border: 1px solid #ffcc00;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 16px;
-      cursor: pointer;
-      transition: .2s;
+    .hints-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #888;
     }
-    #ranking-btn:hover { background: #ffcc00; color: #111; }
-
-    #mute-btn {
-      padding: 6px 10px;
-      background: #333;
+    .hint-key {
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 3px;
+      padding: 1px 5px;
       color: #ffcc00;
-      border: 1px solid #ffcc00;
-      border-radius: 4px;
+      font-size: 9px;
       font-family: inherit;
-      font-size: 16px;
-      cursor: pointer;
-      transition: .2s;
-      line-height: 1;
+      white-space: nowrap;
     }
-    #mute-btn:hover { background: #ffcc00; color: #111; }
-    #mute-btn.muted { opacity: 0.5; border-color: #666; color: #888; }
 
-    /* ── Modal de configurações ── */
-    #settings-modal {
+    @media (pointer: coarse), (max-width: 500px) {
+      #game-screen { padding: 4px; gap: 4px; }
+      #game-header { font-size: 12px; gap: 4px; }
+      #game-header .stat { min-width: 60px; font-size: 11px; }
+      #keyboard-hints { display: none; }
+      #virtual-joystick { display: block; }
+      #mobile-pause-btn { display: inline-block; }
+    }
+
+    /* Pause hide on desktop */
+    @media (pointer: fine) {
+      #mobile-pause-btn { display: none !important; }
+    }
+
+    @media (pointer: fine) {
+      #virtual-joystick { display: none; }
+    }
+
+    /* ── Modals ── */
+    #settings-modal, #ranking-modal {
       display: none;
       position: fixed;
       top: 0; left: 0;
@@ -224,21 +337,9 @@
       justify-content: center;
       align-items: center;
     }
-    #settings-modal.show { display: flex; }
+    #settings-modal.show, #ranking-modal.show { display: flex; }
 
-    #ranking-modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.88);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-    }
-    #ranking-modal.show { display: flex; }
-
-    .ranking-box {
+    .ranking-box, .settings-box {
       background: #111;
       border: 2px solid #ffcc00;
       border-radius: 8px;
@@ -248,8 +349,9 @@
       overflow-y: auto;
       box-shadow: 0 0 40px rgba(255,204,0,.15);
       text-align: center;
+      max-width: 92vw;
     }
-    .ranking-box h2 {
+    .ranking-box h2, .settings-box h2 {
       color: #ffcc00;
       font-size: 20px;
       letter-spacing: 3px;
@@ -285,42 +387,17 @@
     }
     .ranking-credits .rcorp { color: #ffcc00; font-size: 10px; font-weight: bold; }
 
-    .settings-box {
-      background: #111;
-      border: 2px solid #ffcc00;
-      border-radius: 8px;
-      padding: 28px 32px;
-      width: 360px;
-      box-shadow: 0 0 40px rgba(255,204,0,.15);
-    }
-    .settings-box h2 {
-      color: #ffcc00;
-      font-size: 20px;
-      letter-spacing: 3px;
-      margin-bottom: 20px;
-      text-align: center;
-      text-shadow: 0 0 8px rgba(255,204,0,.3);
-    }
-
-    .setting-row {
+    .settings-box .setting-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 10px 0;
       border-bottom: 1px solid #222;
     }
-    .setting-row:last-child { border-bottom: none; }
-    .setting-label {
-      color: #ccc;
-      font-size: 14px;
-    }
-    .setting-desc {
-      color: #666;
-      font-size: 11px;
-      margin-top: 2px;
-    }
+    .settings-box .setting-row:last-child { border-bottom: none; }
+    .setting-label { color: #ccc; font-size: 14px; }
+    .setting-desc { color: #666; font-size: 11px; margin-top: 2px; }
 
-    /* Toggle switch */
     .toggle {
       position: relative;
       width: 48px;
@@ -347,11 +424,7 @@
     .toggle input:checked + .slider { background: #ffcc00; }
     .toggle input:checked + .slider::before { transform: translateX(24px); background: #111; }
 
-    /* Difficulty selector */
-    .difficulty-options {
-      display: flex;
-      gap: 6px;
-    }
+    .difficulty-options { display: flex; gap: 6px; }
     .diff-btn {
       padding: 6px 10px;
       background: #222;
@@ -382,126 +455,6 @@
       transition: .2s;
     }
     .settings-close:hover { background: #ffdd33; }
-
-    /* ── Mobile D-pad ── */
-    #mobile-controls {
-      display: none;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
-      padding: 8px 0 16px;
-      width: 100%;
-      max-width: 420px;
-    }
-
-    .dpad {
-      position: relative;
-      width: 130px;
-      height: 130px;
-    }
-    .dpad-btn {
-      position: absolute;
-      width: 44px;
-      height: 44px;
-      background: #222;
-      border: 2px solid #444;
-      border-radius: 6px;
-      color: #ffcc00;
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-      transition: background .1s;
-    }
-    .dpad-btn:active, .dpad-btn.active {
-      background: #ffcc00;
-      color: #111;
-      border-color: #ffcc00;
-    }
-    .dpad-up    { top: 0; left: 43px; }
-    .dpad-down  { bottom: 0; left: 43px; }
-    .dpad-left  { top: 43px; left: 0; }
-    .dpad-right { top: 43px; right: 0; }
-    .dpad-center {
-      position: absolute;
-      top: 43px; left: 43px;
-      width: 44px; height: 44px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 50%;
-    }
-
-    .action-btns {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .action-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      border: 2px solid #444;
-      background: #222;
-      color: #ffcc00;
-      font-size: 12px;
-      font-family: inherit;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-      transition: background .1s;
-    }
-    .action-btn:active, .action-btn.active {
-      background: #ffcc00;
-      color: #111;
-      border-color: #ffcc00;
-    }
-
-    /* ── Keyboard Hints ── */
-    #keyboard-hints {
-      width: 420px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 16px;
-      padding: 10px 16px;
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 6px;
-    }
-    .hints-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: #888;
-    }
-    .hint-key {
-      background: #222;
-      border: 1px solid #444;
-      border-radius: 3px;
-      padding: 2px 6px;
-      color: #ffcc00;
-      font-size: 10px;
-      font-family: inherit;
-      white-space: nowrap;
-    }
-
-    @media (pointer: coarse), (max-width: 500px) {
-      #mobile-controls { display: flex; }
-      #game-screen { padding: 8px; gap: 6px; }
-      #game-header { font-size: 13px; gap: 12px; }
-      #game-header span { min-width: 80px; }
-      #game-canvas { max-width: 100%; height: auto; }
-      #keyboard-hints { display: none; }
-    }
   </style>
 </head>
 <body>
@@ -510,70 +463,68 @@
   <div id="auth-screen">
     <div class="auth-box">
       <h1>PAC-MAN</h1>
-      <div id="auth-tabs">
-        <button class="tab active" data-tab="login">Login</button>
-        <button class="tab" data-tab="register">Registrar</button>
-      </div>
+      <div class="subtitle">RETRÔ EDITION</div>
+      <div class="privacy-note">🔒 Login sem senha — apenas seu email como identificador</div>
 
       <form id="login-form">
-        <input type="email" id="login-email" placeholder="E-mail" required autocomplete="email">
-        <input type="password" id="login-pass" placeholder="Senha" minlength="6" required autocomplete="current-password">
-        <button type="submit">Entrar</button>
+        <input type="email" id="login-email" placeholder="Seu e-mail" required autocomplete="email">
+        <button type="submit">🎮 Entrar e Jogar</button>
         <p id="login-error" class="error"></p>
       </form>
 
-      <form id="register-form" style="display:none">
-        <input type="email" id="reg-email" placeholder="E-mail" required autocomplete="email">
-        <input type="password" id="reg-pass" placeholder="Senha (mín. 6 caracteres)" minlength="6" required autocomplete="new-password">
-        <button type="submit">Criar Conta</button>
+      <form id="register-form">
+        <input type="text" id="reg-name" placeholder="Seu nome ou apelido (opcional)" autocomplete="name" maxlength="100">
+        <input type="email" id="reg-email" placeholder="Seu e-mail" required autocomplete="email">
+        <button type="submit">📝 Cadastrar e Jogar</button>
         <p id="reg-error" class="error"></p>
       </form>
+
+      <div class="auth-footer">
+        <span class="corp">ProntaCorp S.A.</span>
+        <span>tecnologia com propósito humano</span>
+      </div>
     </div>
   </div>
 
   <!-- ─── GAME SCREEN ─── -->
   <div id="game-screen">
     <div id="copyright-bar">
-      <div class="cp-title">PAC-MAN RETRÔ</div>
+      <div class="cp-title">PAC-MAN RETRÔ v3.0</div>
       <div class="cp-company">ProntaCorp S.A.</div>
       <div class="cp-slogan">tecnologia com propósito humano</div>
     </div>
     <div id="game-header">
-      <span>🏆 <span id="score-display">0</span></span>
-      <span>❤️ <span id="lives-display">3</span></span>
-      <span>🎯 <span id="level-display">1</span></span>
-      <button id="mute-btn" title="Alternar som">🔊</button>
-      <button id="logout-btn">Sair</button>
-      <button id="ranking-btn">🏆</button>
-      <button id="settings-btn">⚙️</button>
+      <div class="stat"><small>🏆 SCORE</small><span id="score-display">0</span></div>
+      <div class="stat"><small>❤️ VIDAS</small><span id="lives-display">3</span></div>
+      <div class="stat"><small>🎯 NÍVEL</small><span id="level-display">1</span></div>
+      <button class="header-btn" id="mute-btn" title="Alternar som">🔊</button>
+      <button class="header-btn" id="logout-btn" title="Sair">🚪</button>
+      <button class="header-btn" id="ranking-btn" title="Ranking">🏆</button>
+      <button class="header-btn" id="mobile-pause-btn" title="Pausar" style="display:none">❚❚</button>
+      <button class="header-btn" id="settings-btn" title="Configurações">⚙️</button>
     </div>
-    <div style="position:relative">
+    <div id="game-canvas-wrapper">
       <canvas id="game-canvas" width="420" height="420"></canvas>
       <div id="game-overlay">
         <span id="overlay-text">GAME OVER</span>
-        <small id="overlay-hint">Pressione ESPAÇO para jogar novamente</small>
+        <small id="overlay-hint">Pressione ESPAÇO para jogar</small>
       </div>
+      <!-- Virtual Joystick (mobile) -->
+      <div id="virtual-joystick">
+        <div id="joystick-knob"></div>
+      </div>
+      <!-- Mobile Continue Button (appears on game over) -->
+      <button id="mobile-continue" style="display:none;position:absolute;bottom:8px;right:8px;z-index:11;background:#2a5;border:2px solid #4f8;color:#fff;border-radius:50%;width:44px;height:44px;font-size:10px;font-weight:bold;font-family:inherit;cursor:pointer;touch-action:manipulation;align-items:center;justify-content:center;">▶</button>
+      <div id="joystick-hint" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.3);font-size:8px;letter-spacing:0.5px;pointer-events:none;white-space:nowrap;z-index:11;">Arraste para mover</div>
     </div>
-    <div id="mobile-controls">
-      <div class="dpad">
-        <button class="dpad-btn dpad-up" data-dir="up">▲</button>
-        <button class="dpad-btn dpad-down" data-dir="down">▼</button>
-        <button class="dpad-btn dpad-left" data-dir="left">◄</button>
-        <button class="dpad-btn dpad-right" data-dir="right">►</button>
-        <div class="dpad-center"></div>
-      </div>
-      <div class="action-btns">
-        <button class="action-btn" id="mobile-start">START</button>
-        <button class="action-btn" id="mobile-pause">❚❚</button>
-        <button class="action-btn" id="mobile-continue" style="display:none;background:#2a5;border-color:#4f8">▶ CONT</button>
-      </div>
-    </div>      <div id="keyboard-hints">
+    <div id="keyboard-hints">
       <div class="hints-row"><span class="hint-key">↑↓←→</span> Mover</div>
-      <div class="hints-row"><span class="hint-key">Espaço</span> Iniciar / Pular intro</div>
+      <div class="hints-row"><span class="hint-key">Espaço</span> Iniciar / Pular</div>
       <div class="hints-row"><span class="hint-key">P</span> Pausar</div>
-      <div class="hints-row"><span class="hint-key">M</span> Alternar som</div>
+      <div class="hints-row"><span class="hint-key">M</span> Som</div>
       <div class="hints-row"><span class="hint-key">R</span> Ranking</div>
       <div class="hints-row"><span class="hint-key">N</span> Novo jogo</div>
+      <div class="hints-row"><span class="hint-key">C</span> Continuar</div>
     </div>
   </div>
 
@@ -594,7 +545,6 @@
   <div id="settings-modal">
     <div class="settings-box">
       <h2>⚙️ CONFIGURAÇÕES</h2>
-
       <div class="setting-row">
         <div>
           <div class="setting-label">Animação de Intro</div>
@@ -605,7 +555,6 @@
           <span class="slider"></span>
         </label>
       </div>
-
       <div class="setting-row">
         <div>
           <div class="setting-label">Som</div>
@@ -616,7 +565,6 @@
           <span class="slider"></span>
         </label>
       </div>
-
       <div class="setting-row">
         <div>
           <div class="setting-label">Dificuldade</div>
@@ -628,7 +576,6 @@
           <button class="diff-btn" data-diff="hard">Difícil</button>
         </div>
       </div>
-
       <button class="settings-close" id="settings-close">FECHAR</button>
     </div>
   </div>

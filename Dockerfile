@@ -1,14 +1,19 @@
-FROM node:20-alpine
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# Copia apenas os manifests primeiro (aproveita cache de camadas)
-COPY package*.json ./
-RUN npm install --production && npm cache clean --force
+# Instala dependências do sistema (necessário para algumas libs Python)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copia o resto do código
+# Copia apenas requirements primeiro (aproveita cache de camadas)
+COPY backend/requirements.txt backend/
+RUN pip install --no-cache-dir -r backend/requirements.txt
+
+# Copia o código
 COPY . .
 
-EXPOSE 3000
+EXPOSE 8000
 
-CMD ["node", "server.js"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
