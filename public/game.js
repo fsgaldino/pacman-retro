@@ -1,7 +1,7 @@
 /* ===========================================================
-   PAC-MAN RETRÔ — Motor Completo
+   PAC-MAN RETRÔ v4.0 — Motor Completo + Fluxo Arcade
    Inclui: Web Audio API (sons sintetizados),
-   mapa 21×21, 4 fantasmas com IA, pontuação, autenticação.
+   mapa 21×21, 4 fantasmas com IA, pontuação, fluxo arcade.
    =========================================================== */
 
 // ─── CONSTANTES ─────────────────────────────────────────────
@@ -310,18 +310,27 @@ class Entity {
     // Fora do centro: enfileira para ser consumido no próximo alinhamento
     this.bufferedDir = newDir;
 
-    // Early snap (v3.0): se está perto do centro e a direção é válida
-    // no tile à frente, aplica imediatamente para fluidez máxima
+    // Early snap: se está perto do centro, verifica se pode virar no
+    // tile de intersecção (destino do movimento atual) em vez de
+    // pular 2 tiles à frente, evitando colisão com paredes.
     if (this.moving && this._nearCenter(TURN_TOLERANCE)) {
       const nextD = DIR[this.dir];
-      const nc = this.col + (nextD ? nextD.dx : 0);
-      const nr = this.row + (nextD ? nextD.dy : 0);
-      if (this.canMoveTo(nc + d.dx, nr + d.dy, map, isGhost)) {
+      const interCol = this.col + (nextD ? nextD.dx : 0);
+      const interRow = this.row + (nextD ? nextD.dy : 0);
+      // Verifica se no tile de intersecção a nova direção é válida
+      if (this.canMoveTo(interCol + d.dx, interRow + d.dy, map, isGhost)) {
+        // Snap ao centro do tile de intersecção para evitar que
+        // step() use this.col/this.row desatualizados
+        this.col = interCol;
+        this.row = interRow;
+        this.px = interCol * TS + TS / 2;
+        this.py = interRow * TS + TS / 2;
         this.dir = newDir;
         this.bufferedDir = null;
-        this.targetX = (nc + d.dx) * TS + TS / 2;
-        this.targetY = (nr + d.dy) * TS + TS / 2;
+        this.targetX = (interCol + d.dx) * TS + TS / 2;
+        this.targetY = (interRow + d.dy) * TS + TS / 2;
         this.moving = true;
+        return;
       }
     }
   }
@@ -864,15 +873,50 @@ class Game {
     Audio.death(); this.updateUI();
   }
 
-  // Overlay de GAMEOVER com Continue/Restart
+  // Overlay de GAMEOVER — fluxo arcade v4.0
   _showGameOverOverlay() {
+    const player = getPlayerReg();
     const hasSave = this._hasSave();
-    if (hasSave) {
-      this.showOverlay('GAME OVER', 'C continuar  •  N reiniciar');
+
+    if (player && player.token) {
+      // Já tem identidade salva → auto-submete score e pergunta continuar
+      this._autoSubmitScore(player);
+      if (hasSave) {
+        this.showOverlay('GAME OVER', 'C continuar  •  N novo jogo');
+      } else {
+        this.showOverlay('GAME OVER', 'Espaço para começar');
+      }
     } else {
-      this.showOverlay('GAME OVER', 'Pressione ESPAÇO');
+      // Sem identidade salva → mostra modal de registro
+      // (independente de ter save ou não)
+      this.showOverlay('', '');
+      this.hideOverlay(true);
+      setTimeout(() => showScoreReg(this.score), 500);
     }
     this._updateMobileContinueBtn();
+  }
+
+  _showContinueOverlay() {
+    const hasSave = this._hasSave();
+    if (hasSave) {
+      this.showOverlay('PRESSIONE ESPAÇO', 'continuar  •  N novo jogo');
+    } else {
+      this.showOverlay('PRESSIONE ESPAÇO', 'para começar');
+    }
+  }
+
+  async _autoSubmitScore(player) {
+    if (!player || !player.token || this.score <= 0) return;
+    try {
+      await fetch('/api/scores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${player.token}`
+        },
+        body: JSON.stringify({ score: this.score })
+      });
+    } catch (_) {}
   }
 
   // Mostra/esconde botão Continue no mobile
@@ -906,11 +950,19 @@ class Game {
   }
 
   async submitScore() {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    const player = getPlayerReg();
+    if (!player || !player.token || this.score <= 0) return;
     try {
-      await fetch('/api/scores', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ score: this.score }) });
-      const res = await fetch('/api/scores?limit=10'); const scores = await res.json();
+      await fetch('/api/scores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${player.token}`
+        },
+        body: JSON.stringify({ score: this.score })
+      });
+      const res = await fetch('/api/scores?limit=10');
+      const scores = await res.json();
       const rank = scores.findIndex(s => s.score <= this.score && s.player_email);
       if (rank >= 0 && this.score > 0) {
         this.highScoreRank = rank + 1; this.highScoreTimer = 4.0; this.highScoreParticles = [];
@@ -1208,8 +1260,7 @@ class Game {
   }
 
   _showIdleOverlay() {
-    if (this._hasSave()) this.showOverlay('PRESSIONE ESPAÇO', 'continuar  •  N novo jogo');
-    else this.showOverlay('PRESSIONE ESPAÇO', 'para começar');
+    this._showContinueOverlay();
   }
 
   _showRanking() {
@@ -1352,19 +1403,22 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // N: novo jogo em IDLE e GAMEOVER
+  // N: novo jogo em IDLE, GAMEOVER — limpa tudo e recomeça
   if (e.code === 'KeyN' && (game.state === 'IDLE' || game.state === 'GAMEOVER')) {
-    e.preventDefault(); game._clearSave(); game._hideRanking();
-    if (game.state === 'GAMEOVER') { game.init(1); }
-    else { game._showIdleOverlay(); }
+    e.preventDefault();
+    game._clearSave();
+    clearPlayerReg();
+    game._hideRanking();
+    game.init(1);
     return;
   }
 
-  // FIX 4 — C: Continuar no GAMEOVER
+  // C: Continuar no GAMEOVER (se houver save)
   if (e.code === 'KeyC' && game.state === 'GAMEOVER') {
     e.preventDefault();
     const save = game._loadGame();
     if (save) { game.resumeGame(save); }
+    else { game.init(1); }
     return;
   }
 
@@ -1373,11 +1427,11 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); game._showRanking(); return;
   }
 
-  // Space no GAMEOVER sem save
+  // Space no GAMEOVER
   if (e.code === 'Space' && game.state === 'GAMEOVER') {
     e.preventDefault();
     const save = game._loadGame();
-    if (save) { game.resumeGame(save); } else { game.init(1); }
+    if (save) { game.resumeGame(save); }
     return;
   }
 
@@ -1391,32 +1445,212 @@ document.addEventListener('keydown', e => {
   else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 });
 
-// ── Auth ───────────────────────────────────────────────────
-const authScreen = document.getElementById('auth-screen');
+// ── FLUXO ARCA DE (v4.0) ───────────────────────────────────
+// O jogo carrega direto na tela inicial com intro.
+// Após game over, pede nickname + email para registrar score.
+// Se já tem identidade salva, pergunta Continuar ou Novo Jogo.
+
 const gameScreen = document.getElementById('game-screen');
 
-function showGame() {
-  authScreen.style.display = 'none'; gameScreen.style.display = 'flex';
+// Chaves do localStorage
+const REG_KEY = 'pacman_player';  // { name, email, token }
+
+function getPlayerReg() {
+  try {
+    const raw = localStorage.getItem(REG_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+}
+
+function savePlayerReg(name, email, token) {
+  localStorage.setItem(REG_KEY, JSON.stringify({ name, email, token }));
+}
+
+function clearPlayerReg() {
+  localStorage.removeItem(REG_KEY);
+}
+
+function startArcade() {
+  // Mostra a tela do jogo imediatamente
+  gameScreen.style.display = 'flex';
   Audio.init();
+
+  const player = getPlayerReg();
   const save = game._loadGame();
-  if (save && save.level >= 1) {
+
+  if (save && save.level >= 1 && player) {
+    // Save encontrado + jogador registrado → pergunta continuar ou novo
     game.init(save.level);
-    game.score = save.score; game.lives = save.lives;
+    game.score = save.score;
+    game.lives = save.lives;
     game.fruitIndex = save.fruitIndex || 0;
     game.fruitSpawnTimer = save.fruitSpawnTimer || 0;
     game.state = 'IDLE';
-    game.showOverlay('JOGO SALVO ENCONTRADO', 'C continuar  •  N novo jogo');
+    game.showOverlay('BEM-VINDO DE VOLTA!', 'Espaço continuar  •  N novo jogo');
+  } else if (save && save.level >= 1 && !player) {
+    // Save sem jogador registrado → começa sem identidade
+    game.init(save.level);
+    game.score = save.score;
+    game.lives = save.lives;
+    game.fruitIndex = save.fruitIndex || 0;
+    game.fruitSpawnTimer = save.fruitSpawnTimer || 0;
+    game.state = 'IDLE';
+    game.showOverlay('JOGO SALVO', 'Espaço continuar  •  N novo jogo');
   } else {
+    // Primeira vez — mostra intro
     game.init(1);
   }
-  // Ranking auto-opens in _finishIntro() when state becomes IDLE
 }
 
-function showAuth() { authScreen.style.display = 'flex'; gameScreen.style.display = 'none'; }
+// ── Score Registration após Game Over ──────────────────────
+const regModal = document.getElementById('score-reg-modal');
+const regNameInput = document.getElementById('reg-name');
+const regEmailInput = document.getElementById('reg-email');
+const regScoreEl = document.getElementById('reg-score');
+const regErrorEl = document.getElementById('reg-error');
+const regSuccessEl = document.getElementById('reg-success');
+const regSubmitBtn = document.getElementById('reg-submit-btn');
 
-if (localStorage.getItem('token')) { showGame(); } else { showAuth(); }
+let _pendingScore = 0;
 
-document.getElementById('logout-btn').onclick = () => { localStorage.removeItem('token'); location.reload(); };
+function showScoreReg(score) {
+  _pendingScore = score;
+  regScoreEl.textContent = score.toLocaleString();
+  regErrorEl.textContent = '';
+  regSuccessEl.textContent = '';
+  regNameInput.value = '';
+  regEmailInput.value = '';
+  regSubmitBtn.disabled = false;
+  regModal.classList.add('show');
+  // Foco no nome
+  setTimeout(() => regNameInput.focus(), 100);
+}
+
+async function submitScoreReg(name, email) {
+  regSubmitBtn.disabled = true;
+  regErrorEl.textContent = '';
+  regSuccessEl.textContent = '';
+
+  try {
+    // Tenta registrar (cria conta se nova, ou faz login se já existe)
+    const regRes = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email })
+    });
+
+    let token;
+    if (regRes.ok) {
+      const data = await regRes.json();
+      token = data.token;
+    } else if (regRes.status === 409) {
+      // Email já existe: verifica se é conflito de nickname
+      const errData = await regRes.json();
+      const detail = (errData.detail || '').toLowerCase();
+      if (detail.includes('nome/apelido')) {
+        regErrorEl.textContent = 'Este nome já está em uso. Escolha outro.';
+        regSubmitBtn.disabled = false;
+        return;
+      }
+      // Email já existe → faz login
+      const loginRes = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!loginRes.ok) {
+        regErrorEl.textContent = 'Erro ao autenticar. Tente novamente.';
+        regSubmitBtn.disabled = false;
+        return;
+      }
+      const loginData = await loginRes.json();
+      token = loginData.token;
+      name = loginData.name || name; // usa nome cadastrado
+    } else {
+      const errData = await regRes.json();
+      regErrorEl.textContent = errData.detail || 'Erro ao registrar';
+      regSubmitBtn.disabled = false;
+      return;
+    }
+
+    // Salva identidade do jogador
+    savePlayerReg(name, email, token);
+
+    // Submete a pontuação
+    const scoreRes = await fetch('/api/scores', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ score: _pendingScore })
+    });
+
+    if (scoreRes.ok) {
+      regSuccessEl.textContent = '✅ Pontuação salva!';
+      setTimeout(() => {
+        regModal.classList.remove('show');
+        // Mostra overlay de continuar (aproveita save existente se houver)
+        const hasSave = game._hasSave();
+        if (hasSave) {
+          // Mantém o save, mostra overlay para continuar
+          const sd = game._loadGame();
+          game.init(sd ? sd.level : 1);
+          if (sd) {
+            game.score = sd.score;
+            game.lives = sd.lives;
+          }
+          game.state = 'IDLE';
+          game._showContinueOverlay();
+        } else {
+          game.init(1);
+        }
+      }, 1200);
+    } else {
+      regErrorEl.textContent = 'Erro ao salvar pontuação';
+      regSubmitBtn.disabled = false;
+    }
+  } catch (_) {
+    regErrorEl.textContent = 'Erro de conexão. Verifique o servidor.';
+    regSubmitBtn.disabled = false;
+  }
+}
+
+// Submissão do formulário de registro
+regSubmitBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  const name = regNameInput.value.trim();
+  const email = regEmailInput.value.trim();
+  if (!name) { regErrorEl.textContent = 'Digite seu nome ou apelido'; return; }
+  if (!email || !email.includes('@')) { regErrorEl.textContent = 'Digite um e-mail válido'; return; }
+  submitScoreReg(name, email);
+});
+
+// Enter nos inputs também submete
+regEmailInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') regSubmitBtn.click();
+});
+regNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') regEmailInput.focus();
+});
+
+// ── Inicialização ─────────────────────────────────────────
+startArcade();
+
+// ── Logout ─────────────────────────────────────────────────
+document.getElementById('logout-btn').onclick = () => {
+  const player = getPlayerReg();
+  if (player && player.token) {
+    // Tenta invalidar token no servidor
+    fetch('/api/logout', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${player.token}` }
+    }).catch(() => {});
+  }
+  clearPlayerReg();
+  game._clearSave();
+  location.reload();
+};
 
 // ── Virtual Joystick (Touch Delta Controls) ──────────────
 // v3.0: Joystick virtual suave baseado na Web Touch API.
@@ -1747,15 +1981,16 @@ document.getElementById('logout-btn').onclick = () => { localStorage.removeItem(
   }
 })();
 
-// ── Auth forms (Passwordless — Privacy by Design) ──────────
-// v3.0: Login/registro sem senha. Apenas email (identificador único).
+// ── Auth forms (Email + Senha) ─────────────────────────────
 document.getElementById('login-form').onsubmit = async (e) => {
   e.preventDefault();
   const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  document.getElementById('login-error').textContent = '';
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
+    body: JSON.stringify({ email, password })
   });
   const data = await res.json();
   if (data.token) {
@@ -1770,10 +2005,12 @@ document.getElementById('register-form').onsubmit = async (e) => {
   e.preventDefault();
   const name = document.getElementById('reg-name').value;
   const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  document.getElementById('reg-error').textContent = '';
   const res = await fetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email })
+    body: JSON.stringify({ name, email, password })
   });
   const data = await res.json();
   if (data.token) {

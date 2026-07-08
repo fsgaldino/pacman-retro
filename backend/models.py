@@ -14,12 +14,15 @@ import sqlite3
 import os
 import time
 
-DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "pacman.db"))
+def _get_db_path() -> str:
+    """Retorna o caminho do banco, lendo da env var a cada chamada."""
+    return os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "pacman.db"))
 
 
 def _get_conn() -> sqlite3.Connection:
     """Retorna uma conexão SQLite (uma por thread/event-loop)."""
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    db_path = _get_db_path()
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
@@ -34,7 +37,8 @@ def get_db() -> sqlite3.Connection:
     global _conn
     if _conn is None:
         # Garante que o diretório do banco exista
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        db_path = _get_db_path()
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
         _conn = _get_conn()
         _init_db(_conn)
     return _conn
@@ -49,6 +53,19 @@ def _init_db(conn: sqlite3.Connection) -> None:
         "  created_at TEXT DEFAULT (datetime('now'))"
         ")"
     )
+    # Migration: adiciona colunas que podem faltar em tabelas existentes
+    for col in ['password_hash']:
+        try:
+            conn.execute(f"ALTER TABLE players ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
+
+    # Migration: limpa nomes vazios duplicados antes de criar o índice único
+    conn.execute("UPDATE players SET name = '_player_' || id WHERE name = '' OR name IS NULL")
+    try:
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_players_name ON players(name COLLATE NOCASE) WHERE name != ''")
+    except sqlite3.OperationalError:
+        pass
     conn.execute(
         "CREATE TABLE IF NOT EXISTS sessions ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"

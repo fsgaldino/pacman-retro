@@ -2,20 +2,20 @@
 schemas.py — Schemas Pydantic para validação de dados
 """
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Auth ────────────────────────────────────────────────────
 
 class LoginRequest(BaseModel):
-    """Login apenas por email — sem senha (Privacy by Design)."""
-    email: str = Field(..., max_length=255, description="Email do jogador (identificador único)")
+    """Login apenas por email — passwordless."""
+    email: str = Field(..., max_length=255, description="Email do jogador")
 
 
 class RegisterRequest(BaseModel):
     """Registro com nome/apelido e email — sem senha."""
-    name: str = Field(default="", max_length=100, description="Nome ou apelido do jogador")
-    email: str = Field(..., max_length=255, description="Email do jogador (identificador único)")
+    name: str = Field(..., min_length=1, max_length=100, description="Nome ou apelido único do jogador")
+    email: str = Field(..., max_length=255, description="Email do jogador")
 
 
 class AuthResponse(BaseModel):

@@ -1,9 +1,9 @@
 """
-main.py — Servidor FastAPI para o Pac-Man Retrô v3.0
+main.py — Servidor FastAPI para o Pac-Man Retrô v4.0
 
 Endpoints:
-  POST /api/login       — login por email (sem senha)
-  POST /api/register    — registro por nome + email (sem senha)
+  POST /api/login       — login por email (passwordless)
+  POST /api/register    — registro por nome + email (passwordless)
   POST /api/logout      — invalida token
   GET  /api/me          — dados do jogador autenticado
   GET  /api/scores      — ranking de pontuações
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Pac-Man Retrô API",
-    version="3.0.0",
+    version="4.0.0",
     description="Backend passwordless para o Pac-Man Retrô da ProntaCorp",
     lifespan=lifespan,
 )
@@ -82,15 +82,6 @@ app = FastAPI(
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "public"
 
 # ── CORS (configurável via ALLOWED_ORIGINS) ─────────────────
-#
-# Por padrão, permite qualquer origem (compatível com PWA + TWA).
-# Para restringir em produção, defina a variável ALLOWED_ORIGINS com
-# uma lista separada por vírgulas (sem espaços):
-#   ALLOWED_ORIGINS=https://pacman.seudominio.com,https://meuapp.com
-#
-# Para proibir origens externas (apenas mesma origem), use um valor vazio:
-#   ALLOWED_ORIGINS=
-#
 _allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
 if _allowed_origins_str:
     _allowed_origins = [o.strip() for o in _allowed_origins_str.split(",") if o.strip()]
@@ -111,29 +102,47 @@ app.add_middleware(
 @app.post("/api/register", response_model=AuthResponse, status_code=201)
 def register(req: RegisterRequest):
     """
-    Registra um novo jogador usando apenas email (sem senha).
-    O email é o identificador único — Privacy by Design.
+    Registra um novo jogador usando nome + email (passwordless).
+    Valida unicidade de email e nickname com mensagens distintas.
     """
     name = sanitize(req.name)
     email = sanitize(req.email).lower()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Nome/apelido é obrigatório")
 
     if not is_valid_email(email):
         raise HTTPException(status_code=400, detail="E-mail inválido")
 
     db = get_db()
 
-    # Verifica se email já existe
-    existing = db.execute("SELECT id FROM players WHERE email = ?", (email,)).fetchone()
-    if existing:
-        raise HTTPException(status_code=409, detail="E-mail já cadastrado")
+    # Transação atômica
+    db.execute("BEGIN")
+    try:
+        # Verifica se email já existe
+        existing_email = db.execute(
+            "SELECT id FROM players WHERE email = ?", (email,)
+        ).fetchone()
+        if existing_email:
+            raise HTTPException(status_code=409, detail="Este e-mail já está cadastrado")
 
-    # Cria jogador
-    cur = db.execute(
-        "INSERT INTO players (name, email) VALUES (?, ?)",
-        (name, email),
-    )
-    db.commit()
-    player_id = cur.lastrowid
+        # Verifica se nickname já existe (case-insensitive)
+        existing_name = db.execute(
+            "SELECT id FROM players WHERE name = ? COLLATE NOCASE AND name != ''", (name,)
+        ).fetchone()
+        if existing_name:
+            raise HTTPException(status_code=409, detail="Este nome/apelido já está em uso. Escolha outro.")
+
+        # Cria jogador
+        cur = db.execute(
+            "INSERT INTO players (name, email) VALUES (?, ?)",
+            (name, email),
+        )
+        db.commit()
+        player_id = cur.lastrowid
+    except Exception:
+        db.rollback()
+        raise
 
     # Gera token de sessão
     token = generate_token()
@@ -149,9 +158,8 @@ def register(req: RegisterRequest):
 @app.post("/api/login", response_model=AuthResponse)
 def login(req: LoginRequest):
     """
-    Login validado APENAS por email.
-    Para existir, o email precisa estar cadastrado.
-    Sem senha — autenticação mínima, Privacy by Design.
+    Login validado apenas por email (passwordless).
+    O email precisa estar cadastrado.
     """
     email = sanitize(req.email).lower()
 
@@ -160,7 +168,6 @@ def login(req: LoginRequest):
 
     db = get_db()
 
-    # Busca jogador pelo email
     player = db.execute(
         "SELECT id, name, email FROM players WHERE email = ?",
         (email,),
@@ -243,7 +250,6 @@ def submit_score(
 ):
     """
     Submete uma nova pontuação para o jogador autenticado.
-    Impede duplicidade: um jogador só pode ter UM score por sessão de jogo.
     """
     db = get_db()
     player = db.execute(
@@ -266,11 +272,6 @@ def submit_score(
 
 @app.post("/api/reset-score", response_model=ResetScoreResponse)
 def reset_score(body: ResetScoreRequest):
-    """
-    Reseta o ranking de pontuações e desloga todos os jogadores.
-    Requer um token especial definido na variável de ambiente RESET_SCORE_TOKEN.
-    Esta rota NÃO é documentada na API pública — uso exclusivo administrativo.
-    """
     expected_token = os.environ.get("RESET_SCORE_TOKEN", "")
     if not expected_token:
         return ResetScoreResponse(
@@ -283,7 +284,6 @@ def reset_score(body: ResetScoreRequest):
 
     db = get_db()
 
-    # Transação atômica: ou tudo ou nada
     db.execute("BEGIN")
     try:
         db.execute("DELETE FROM scores")
@@ -303,12 +303,11 @@ def reset_score(body: ResetScoreRequest):
 
 @app.get("/api/health", response_model=HealthResponse)
 def health():
-    return HealthResponse(status="ok", version="3.0.0")
+    return HealthResponse(status="ok", version="4.0.0")
 
 
 # ── Static Files & SPA Fallback ─────────────────────────────
 
-# Servir arquivos estáticos do frontend
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
@@ -317,16 +316,11 @@ if FRONTEND_DIR.exists():
 async def serve_frontend(full_path: str):
     """Serve o index.html para qualquer rota não-API (SPA fallback)."""
     file_path = FRONTEND_DIR / full_path
-
-    # Se o arquivo existe, serve ele
     if file_path.exists() and file_path.is_file():
         return FileResponse(str(file_path))
-
-    # Caso contrário, serve o index.html
     index_path = FRONTEND_DIR / "index.html"
     if index_path.exists():
         return FileResponse(str(index_path))
-
     return JSONResponse(status_code=404, content={"error": "Not found"})
 
 

@@ -7,9 +7,6 @@
   <link rel="manifest" href="manifest.json">
   <title>Pac-Man Retrô</title>
   <style>
-    /* ═══════════════════════════════════════════════════════════
-       PAC-MAN RETRÔ v3.0 — ProntaCorp S.A.
-       ═══════════════════════════════════════════════════════════ */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       overscroll-behavior: none;
@@ -29,96 +26,8 @@
       overflow: hidden;
     }
 
-    /* ── Tela de autenticação ── */
-    #auth-screen {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      min-height: 100vh;
-      min-height: 100dvh;
-    }
-
-    .auth-box {
-      background: #111;
-      border: 2px solid #ffcc00;
-      border-radius: 8px;
-      padding: 32px 40px;
-      width: 340px;
-      text-align: center;
-      box-shadow: 0 0 30px rgba(255,204,0,.15);
-    }
-
-    .auth-box h1 {
-      font-size: 36px;
-      color: #ffcc00;
-      letter-spacing: 6px;
-      margin-bottom: 6px;
-      text-shadow: 0 0 10px #ffcc00;
-    }
-
-    .auth-box .subtitle {
-      font-size: 12px;
-      color: #888;
-      letter-spacing: 2px;
-      margin-bottom: 24px;
-    }
-
-    .auth-box .privacy-note {
-      font-size: 10px;
-      color: #555;
-      margin-bottom: 18px;
-      line-height: 1.4;
-    }
-
-    .auth-box input {
-      width: 100%;
-      padding: 10px 12px;
-      margin-bottom: 12px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #fff;
-      font-family: inherit;
-      font-size: 14px;
-      border-radius: 4px;
-      outline: none;
-      transition: border .2s;
-    }
-    .auth-box input:focus { border-color: #ffcc00; }
-
-    .auth-box button[type="submit"] {
-      width: 100%;
-      padding: 10px;
-      background: #ffcc00;
-      color: #111;
-      border: none;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: .2s;
-    }
-    .auth-box button[type="submit"]:hover { background: #ffdd33; }
-    .error { color: #ff4444; font-size: 13px; margin-top: 8px; min-height: 20px; }
-
-    .auth-footer {
-      margin-top: 20px;
-      border-top: 1px solid #222;
-      padding-top: 14px;
-    }
-    .auth-footer span {
-      display: block;
-      color: #888;
-      font-size: 9px;
-      letter-spacing: 1px;
-      line-height: 1.5;
-    }
-    .auth-footer .corp { color: #ffcc00; font-size: 10px; font-weight: bold; }
-
-    /* ── Tela do jogo ── */
     #game-screen {
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: center;
       gap: 6px;
@@ -224,6 +133,80 @@
     #game-overlay.show { opacity: 1; pointer-events: auto; }
     #game-overlay small { font-size: 14px; color: #ffcc00; margin-top: 12px; }
 
+    /* ── Score Registration Modal ── */
+    #score-reg-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.88);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    #score-reg-modal.show { display: flex; }
+
+    .score-reg-box {
+      background: #111;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      padding: 28px 32px;
+      width: 360px;
+      max-width: 92vw;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(255,204,0,.15);
+    }
+    .score-reg-box h2 {
+      color: #ffcc00;
+      font-size: 22px;
+      letter-spacing: 3px;
+      margin-bottom: 6px;
+      text-shadow: 0 0 8px rgba(255,204,0,.3);
+    }
+    .score-reg-box .score-display {
+      font-size: 36px;
+      color: #fff;
+      font-weight: bold;
+      margin: 8px 0 16px;
+    }
+    .score-reg-box .sub {
+      color: #888;
+      font-size: 11px;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+    .score-reg-box input {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      border-radius: 4px;
+      outline: none;
+      transition: border .2s;
+    }
+    .score-reg-box input:focus { border-color: #ffcc00; }
+    .score-reg-box button {
+      width: 100%;
+      padding: 10px;
+      background: #ffcc00;
+      color: #111;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: .2s;
+    }
+    .score-reg-box button:hover { background: #ffdd33; }
+    .score-reg-box button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .score-reg-error { color: #ff4444; font-size: 13px; margin-top: 8px; min-height: 20px; }
+    .score-reg-success { color: #4f8; font-size: 13px; margin-top: 8px; min-height: 20px; }
+
     /* ── Virtual Joystick ── */
     #virtual-joystick {
       position: absolute;
@@ -236,11 +219,8 @@
       opacity: 0;
       transition: opacity 0.15s ease;
       z-index: 10;
-      will-change: transform;
     }
-    #virtual-joystick.visible {
-      opacity: 1;
-    }
+    #virtual-joystick.visible { opacity: 1; }
     #joystick-knob {
       position: absolute;
       width: 44px;
@@ -252,79 +232,8 @@
       left: 50%;
       transform: translate(-50%, -50%);
       pointer-events: none;
-      will-change: transform;
-      transition: background 0.1s ease;
     }
-    #joystick-knob.active {
-      background: rgba(255,204,0,0.7);
-      border-color: #ffcc00;
-    }
-
-    #joystick-hint {
-      position: absolute;
-      bottom: 4px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.3);
-      font-size: 8px;
-      letter-spacing: 0.5px;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-
-    /* ── Old D-pad hidden by default ── */
-    #mobile-controls-old {
-      display: none !important;
-    }
-
-    /* ── Keyboard Hints ── */
-    #keyboard-hints {
-      width: 100%;
-      max-width: 420px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 12px;
-      padding: 6px 12px;
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 6px;
-      justify-content: center;
-    }
-    .hints-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 10px;
-      color: #888;
-    }
-    .hint-key {
-      background: #222;
-      border: 1px solid #444;
-      border-radius: 3px;
-      padding: 1px 5px;
-      color: #ffcc00;
-      font-size: 9px;
-      font-family: inherit;
-      white-space: nowrap;
-    }
-
-    @media (pointer: coarse), (max-width: 500px) {
-      #game-screen { padding: 4px; gap: 4px; }
-      #game-header { font-size: 12px; gap: 4px; }
-      #game-header .stat { min-width: 60px; font-size: 11px; }
-      #keyboard-hints { display: none; }
-      #virtual-joystick { display: block; }
-      #mobile-pause-btn { display: inline-block; }
-    }
-
-    /* Pause hide on desktop */
-    @media (pointer: fine) {
-      #mobile-pause-btn { display: none !important; }
-    }
-
-    @media (pointer: fine) {
-      #virtual-joystick { display: none; }
-    }
+    #joystick-knob.active { background: rgba(255,204,0,0.7); border-color: #ffcc00; }
 
     /* ── Modals ── */
     #settings-modal, #ranking-modal {
@@ -356,7 +265,6 @@
       font-size: 20px;
       letter-spacing: 3px;
       margin-bottom: 16px;
-      text-shadow: 0 0 8px rgba(255,204,0,.3);
     }
     #ranking-list {
       list-style: none;
@@ -455,41 +363,57 @@
       transition: .2s;
     }
     .settings-close:hover { background: #ffdd33; }
+
+    #keyboard-hints {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      padding: 6px 12px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      justify-content: center;
+    }
+    .hints-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #888;
+    }
+    .hint-key {
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: #ffcc00;
+      font-size: 9px;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    @media (pointer: coarse), (max-width: 500px) {
+      #game-screen { padding: 4px; gap: 4px; }
+      #game-header { font-size: 12px; gap: 4px; }
+      #game-header .stat { min-width: 60px; font-size: 11px; }
+      #keyboard-hints { display: none; }
+      #virtual-joystick { display: block; }
+      #mobile-pause-btn { display: inline-block; }
+    }
+    @media (pointer: fine) {
+      #mobile-pause-btn { display: none !important; }
+      #virtual-joystick { display: none; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- ─── AUTH SCREEN ─── -->
-  <div id="auth-screen">
-    <div class="auth-box">
-      <h1>PAC-MAN</h1>
-      <div class="subtitle">RETRÔ EDITION</div>
-      <div class="privacy-note">🔒 Login sem senha — apenas seu email como identificador</div>
-
-      <form id="login-form">
-        <input type="email" id="login-email" placeholder="Seu e-mail" required autocomplete="email">
-        <button type="submit">🎮 Entrar e Jogar</button>
-        <p id="login-error" class="error"></p>
-      </form>
-
-      <form id="register-form">
-        <input type="text" id="reg-name" placeholder="Seu nome ou apelido (opcional)" autocomplete="name" maxlength="100">
-        <input type="email" id="reg-email" placeholder="Seu e-mail" required autocomplete="email">
-        <button type="submit">📝 Cadastrar e Jogar</button>
-        <p id="reg-error" class="error"></p>
-      </form>
-
-      <div class="auth-footer">
-        <span class="corp">ProntaCorp S.A.</span>
-        <span>tecnologia com propósito humano</span>
-      </div>
-    </div>
-  </div>
-
   <!-- ─── GAME SCREEN ─── -->
   <div id="game-screen">
     <div id="copyright-bar">
-      <div class="cp-title">PAC-MAN RETRÔ v3.0</div>
+      <div class="cp-title">PAC-MAN RETRÔ v4.0 — Arcade Flow</div>
       <div class="cp-company">ProntaCorp S.A.</div>
       <div class="cp-slogan">tecnologia com propósito humano</div>
     </div>
@@ -506,25 +430,34 @@
     <div id="game-canvas-wrapper">
       <canvas id="game-canvas" width="420" height="420"></canvas>
       <div id="game-overlay">
-        <span id="overlay-text">GAME OVER</span>
-        <small id="overlay-hint">Pressione ESPAÇO para jogar</small>
+        <span id="overlay-text">PAC-MAN</span>
+        <small id="overlay-hint">Pressione ESPAÇO ou toque para começar</small>
       </div>
-      <!-- Virtual Joystick (mobile) -->
-      <div id="virtual-joystick">
-        <div id="joystick-knob"></div>
-      </div>
-      <!-- Mobile Continue Button (appears on game over) -->
+      <div id="virtual-joystick"><div id="joystick-knob"></div></div>
       <button id="mobile-continue" style="display:none;position:absolute;bottom:8px;right:8px;z-index:11;background:#2a5;border:2px solid #4f8;color:#fff;border-radius:50%;width:44px;height:44px;font-size:10px;font-weight:bold;font-family:inherit;cursor:pointer;touch-action:manipulation;align-items:center;justify-content:center;">▶</button>
-      <div id="joystick-hint" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.3);font-size:8px;letter-spacing:0.5px;pointer-events:none;white-space:nowrap;z-index:11;">Arraste para mover</div>
     </div>
     <div id="keyboard-hints">
       <div class="hints-row"><span class="hint-key">↑↓←→</span> Mover</div>
-      <div class="hints-row"><span class="hint-key">Espaço</span> Iniciar / Pular</div>
+      <div class="hints-row"><span class="hint-key">Espaço</span> Iniciar</div>
       <div class="hints-row"><span class="hint-key">P</span> Pausar</div>
       <div class="hints-row"><span class="hint-key">M</span> Som</div>
       <div class="hints-row"><span class="hint-key">R</span> Ranking</div>
       <div class="hints-row"><span class="hint-key">N</span> Novo jogo</div>
       <div class="hints-row"><span class="hint-key">C</span> Continuar</div>
+    </div>
+  </div>
+
+  <!-- ─── SCORE REGISTRATION MODAL (appears after first game over) ─── -->
+  <div id="score-reg-modal">
+    <div class="score-reg-box">
+      <h2>🏆 PARABÉNS!</h2>
+      <div class="sub">Registre sua pontuação no ranking</div>
+      <div class="score-display" id="reg-score">0</div>
+      <input type="text" id="reg-name" placeholder="Seu nome ou apelido" maxlength="100" required>
+      <input type="email" id="reg-email" placeholder="Seu e-mail" required>
+      <button id="reg-submit-btn">📝 Salvar Pontuação</button>
+      <p id="reg-error" class="score-reg-error"></p>
+      <p id="reg-success" class="score-reg-success"></p>
     </div>
   </div>
 
