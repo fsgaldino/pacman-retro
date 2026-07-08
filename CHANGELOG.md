@@ -7,6 +7,26 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [4.0.1] - 2026-07-08
+
+### Fixed
+
+#### 🎮 Fluxo Arcade Simplificado
+- **`startArcade()` simplificada**: Agora sempre inicia com animação de intro (`game.init(1)`), sem verificações complexas de save/player no carregamento
+- **Auto-ranking removido**: Ranking não aparece mais automaticamente ao final da intro
+- **Hints atualizados**: Overlay mostra "C continuar • N novo jogo" (com save) / "Espaço/Touch para começar" (sem save)
+- **Skip button corrigido**: Agora também limpa `playerReg`, garantindo que jogadores anônimos sejam solicitados a registrar na próxima partida
+- **Bug fix `LONG_PRESS_MS`**: Variável estava `undefined` no joystick virtual — agora definida como 600ms, evitando pause instantâneo ao tocar na tela
+
+#### 🔐 Backend Node.js Passwordless
+- **server.js atualizado**: Autenticação sem senha, compatível com o frontend
+- `POST /api/register` aceita `{ name, email }` e retorna `{ token, email, name }`
+- `POST /api/login` aceita apenas `{ email }` (passwordless)
+- Scores agora armazenam `player_name`
+- Mensagens de erro em português, formato `{ detail: "..." }` compatível com o frontend
+
+---
+
 ## [4.0.0] - 2026-07-07
 
 ### Added

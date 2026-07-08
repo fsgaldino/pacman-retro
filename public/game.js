@@ -899,9 +899,9 @@ class Game {
   _showContinueOverlay() {
     const hasSave = this._hasSave();
     if (hasSave) {
-      this.showOverlay('PRESSIONE ESPAÇO', 'continuar  •  N novo jogo');
+      this.showOverlay('PRESSIONE ESPAÇO', 'C continuar  •  N novo jogo');
     } else {
-      this.showOverlay('PRESSIONE ESPAÇO', 'para começar');
+      this.showOverlay('PRESSIONE ESPAÇO', 'Espaço/Touch para começar');
     }
   }
 
@@ -1178,7 +1178,7 @@ class Game {
   _finishIntro() {
     this.introTimer = 0;
     if (this.level > 1) { this.state = 'READY'; this.readyTimer = 2.0; this._readySoundPlayed = false; }
-    else { this.state = 'IDLE'; this._showIdleOverlay(); setTimeout(() => { if (this.state === 'IDLE') this._showRanking(); }, 300); }
+    else { this.state = 'IDLE'; this._showIdleOverlay(); }
   }
 
   _settingsKey() { return 'pacman_settings'; }
@@ -1471,35 +1471,99 @@ function clearPlayerReg() {
 }
 
 function startArcade() {
-  // Mostra a tela do jogo imediatamente
   gameScreen.style.display = 'flex';
   Audio.init();
+  game.init(1);
+}
 
-  const player = getPlayerReg();
-  const save = game._loadGame();
+// ── Confetti Animation ──────────────────────────────────────
+let _confettiParticles = [];
+let _confettiAnimId = null;
 
-  if (save && save.level >= 1 && player) {
-    // Save encontrado + jogador registrado → pergunta continuar ou novo
-    game.init(save.level);
-    game.score = save.score;
-    game.lives = save.lives;
-    game.fruitIndex = save.fruitIndex || 0;
-    game.fruitSpawnTimer = save.fruitSpawnTimer || 0;
-    game.state = 'IDLE';
-    game.showOverlay('BEM-VINDO DE VOLTA!', 'Espaço continuar  •  N novo jogo');
-  } else if (save && save.level >= 1 && !player) {
-    // Save sem jogador registrado → começa sem identidade
-    game.init(save.level);
-    game.score = save.score;
-    game.lives = save.lives;
-    game.fruitIndex = save.fruitIndex || 0;
-    game.fruitSpawnTimer = save.fruitSpawnTimer || 0;
-    game.state = 'IDLE';
-    game.showOverlay('JOGO SALVO', 'Espaço continuar  •  N novo jogo');
-  } else {
-    // Primeira vez — mostra intro
-    game.init(1);
+function startConfetti() {
+  stopConfetti();
+
+  const colors = ['#ffcc00', '#ff0044', '#00ff88', '#4488ff', '#ffb8ff', '#ff6644', '#fff', '#44ffaa', '#ff00ff', '#00ffff'];
+
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    const size = 4 + Math.random() * 10;
+    const isCircle = Math.random() > 0.5;
+    el.style.cssText = [
+      'position: fixed',
+      'width: ' + size + 'px',
+      'height: ' + (isCircle ? size : size * 0.6) + 'px',
+      'background: ' + colors[Math.floor(Math.random() * colors.length)],
+      'border-radius: ' + (isCircle ? '50%' : '2px'),
+      'top: -20px',
+      'left: ' + (Math.random() * 100) + 'vw',
+      'z-index: 3000',
+      'pointer-events: none',
+      'opacity: 0',
+      'will-change: transform, opacity'
+    ].join(';');
+    document.body.appendChild(el);
+    _confettiParticles.push({
+      el,
+      x: parseFloat(el.style.left),
+      y: -20 - Math.random() * 40,
+      vx: (Math.random() - 0.5) * 180,
+      vy: 80 + Math.random() * 250,
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 400,
+      life: 0.8 + Math.random() * 0.4,
+      decay: 0.15 + Math.random() * 0.2
+    });
   }
+
+  let lastTime = performance.now();
+
+  function animate(time) {
+    const dt = Math.min((time - lastTime) / 1000, 0.05);
+    lastTime = time;
+
+    let anyAlive = false;
+    for (const p of _confettiParticles) {
+      p.vy += 380 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rotation += p.rotSpeed * dt;
+      p.life -= dt * p.decay;
+
+      if (p.life > 0 && p.y < window.innerHeight + 30) {
+        anyAlive = true;
+        p.el.style.transform = 'translate(' + p.x + 'px, ' + p.y + 'px) rotate(' + p.rotation + 'deg)';
+        p.el.style.opacity = Math.max(0, Math.min(1, p.life * 1.5));
+      } else {
+        p.el.style.opacity = '0';
+      }
+    }
+
+    if (anyAlive) {
+      _confettiAnimId = requestAnimationFrame(animate);
+    } else {
+      stopConfetti();
+    }
+  }
+
+  for (const p of _confettiParticles) {
+    p.el.style.opacity = '1';
+  }
+
+  _confettiAnimId = requestAnimationFrame(animate);
+}
+
+function stopConfetti() {
+  if (_confettiAnimId) {
+    cancelAnimationFrame(_confettiAnimId);
+    _confettiAnimId = null;
+  }
+  for (const p of _confettiParticles) {
+    if (p.el && p.el.parentNode) {
+      p.el.parentNode.removeChild(p.el);
+    }
+  }
+  _confettiParticles = [];
 }
 
 // ── Score Registration após Game Over ──────────────────────
@@ -1514,6 +1578,7 @@ const regSubmitBtn = document.getElementById('reg-submit-btn');
 let _pendingScore = 0;
 
 function showScoreReg(score) {
+  stopConfetti();
   _pendingScore = score;
   regScoreEl.textContent = score.toLocaleString();
   regErrorEl.textContent = '';
@@ -1588,7 +1653,10 @@ async function submitScoreReg(name, email) {
 
     if (scoreRes.ok) {
       regSuccessEl.textContent = '✅ Pontuação salva!';
+      Audio.celebrate();
+      startConfetti();
       setTimeout(() => {
+        stopConfetti();
         regModal.classList.remove('show');
         // Mostra overlay de continuar (aproveita save existente se houver)
         const hasSave = game._hasSave();
@@ -1605,7 +1673,7 @@ async function submitScoreReg(name, email) {
         } else {
           game.init(1);
         }
-      }, 1200);
+      }, 2200);
     } else {
       regErrorEl.textContent = 'Erro ao salvar pontuação';
       regSubmitBtn.disabled = false;
@@ -1633,6 +1701,19 @@ regEmailInput.addEventListener('keydown', (e) => {
 regNameInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') regEmailInput.focus();
 });
+
+// Botão pular registro (jogar anônimo)
+const skipBtn = document.getElementById('reg-skip-btn');
+if (skipBtn) {
+  skipBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    stopConfetti();
+    regModal.classList.remove('show');
+    clearPlayerReg();
+    game._clearSave();
+    game.init(1);
+  });
+}
 
 // ── Inicialização ─────────────────────────────────────────
 startArcade();
@@ -1665,6 +1746,7 @@ document.getElementById('logout-btn').onclick = () => {
   const DEADZONE = 8; // px — zona morta para evitar inputs fantasmas
   const MAX_RADIUS = 45; // px — raio máximo do joystick
   const SEND_INTERVAL = 80; // ms — intervalo entre envios de direção
+  const LONG_PRESS_MS = 600; // ms — tempo para considerar como pressão longa (pause)
 
   let centerX = 0, centerY = 0;
   let currentDir = null;
@@ -1981,45 +2063,7 @@ document.getElementById('logout-btn').onclick = () => {
   }
 })();
 
-// ── Auth forms (Email + Senha) ─────────────────────────────
-document.getElementById('login-form').onsubmit = async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
-  document.getElementById('login-error').textContent = '';
-  const res = await fetch('/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
-  if (data.token) {
-    localStorage.setItem('token', data.token);
-    showGame();
-  } else {
-    document.getElementById('login-error').textContent = data.detail || data.error || 'Erro ao fazer login';
-  }
-};
-
-document.getElementById('register-form').onsubmit = async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('reg-name').value;
-  const email = document.getElementById('reg-email').value;
-  const password = document.getElementById('reg-password').value;
-  document.getElementById('reg-error').textContent = '';
-  const res = await fetch('/api/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password })
-  });
-  const data = await res.json();
-  if (data.token) {
-    localStorage.setItem('token', data.token);
-    showGame();
-  } else {
-    document.getElementById('reg-error').textContent = data.detail || data.error || 'Erro ao cadastrar';
-  }
-};
+// ── Auth forms removidos — fluxo arcade usa score-reg-modal ──
 
 // Service Worker Registration
 document.addEventListener('DOMContentLoaded', () => {

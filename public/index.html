@@ -206,6 +206,7 @@
     .score-reg-box button:disabled { opacity: 0.4; cursor: not-allowed; }
     .score-reg-error { color: #ff4444; font-size: 13px; margin-top: 8px; min-height: 20px; }
     .score-reg-success { color: #4f8; font-size: 13px; margin-top: 8px; min-height: 20px; }
+    #reg-skip-btn:hover { color: #aaa !important; border-color: #ffcc00 !important; }
 
     /* ── Virtual Joystick ── */
     #virtual-joystick {
@@ -456,6 +457,7 @@
       <input type="text" id="reg-name" placeholder="Seu nome ou apelido" maxlength="100" required>
       <input type="email" id="reg-email" placeholder="Seu e-mail" required>
       <button id="reg-submit-btn">📝 Salvar Pontuação</button>
+      <button id="reg-skip-btn" style="margin-top:10px;background:transparent;color:#666;border:1px solid #333;border-radius:4px;padding:8px;font-family:inherit;font-size:12px;cursor:pointer;width:100%;transition:.2s;">🎮 Jogar sem registrar</button>
       <p id="reg-error" class="score-reg-error"></p>
       <p id="reg-success" class="score-reg-success"></p>
     </div>
