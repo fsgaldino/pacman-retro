@@ -62,9 +62,27 @@ def _init_db(conn: sqlite3.Connection) -> None:
 
     # Migration: limpa nomes vazios duplicados antes de criar o índice único
     conn.execute("UPDATE players SET name = '_player_' || id WHERE name = '' OR name IS NULL")
+    # Deduplica nomes repetidos (caso banco existente tenha duplicatas)
+    try:
+        dupes = conn.execute(
+            "SELECT name, COUNT(*) as cnt FROM players WHERE name != '' AND name IS NOT NULL GROUP BY name COLLATE NOCASE HAVING cnt > 1"
+        ).fetchall()
+        for dup in dupes:
+            rows = conn.execute(
+                "SELECT id FROM players WHERE name = ? COLLATE NOCASE AND name != '' ORDER BY id",
+                (dup["name"],),
+            ).fetchall()
+            for i, row in enumerate(rows):
+                if i > 0:
+                    conn.execute(
+                        "UPDATE players SET name = name || '_' || ? WHERE id = ?",
+                        (row["id"], row["id"]),
+                    )
+    except sqlite3.OperationalError:
+        pass
     try:
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_players_name ON players(name COLLATE NOCASE) WHERE name != ''")
-    except sqlite3.OperationalError:
+    except (sqlite3.OperationalError, sqlite3.IntegrityError):
         pass
     conn.execute(
         "CREATE TABLE IF NOT EXISTS sessions ("

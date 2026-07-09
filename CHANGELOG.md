@@ -7,6 +7,18 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [4.0.2] - 2026-07-09
+
+### Fixed
+
+#### 🐛 Railway Deploy — UNIQUE constraint no players.name
+- **backend/models.py**: Adicionada deduplicação de nomes antes de criar índice único `idx_players_name`
+- Nomes duplicados são renomeados para `nome_id` (ex: `Player1_2`), preservando o primeiro registro
+- Nomes vazios são convertidos para `_player_id` automaticamente
+- Captura `IntegrityError` no índice como rede de segurança extra
+
+---
+
 ## [4.0.1] - 2026-07-08
 
 ### Fixed
