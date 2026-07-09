@@ -1391,6 +1391,11 @@ const game = new Game(canvas);
 document.addEventListener('keydown', e => {
   if (gameScreen.style.display === 'none') return;
 
+  // ── FIX v4.0.3: não interceptar teclas quando modal de registro está aberto ou foco em input ──
+  const activeTag = document.activeElement ? document.activeElement.tagName : '';
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+  if (regModal && regModal.classList.contains('show')) return;
+
   if (e.code === 'KeyM') { e.preventDefault(); game._toggleSound(); return; }
   if (e.code === 'KeyP' && (game.state === 'PLAYING' || game.state === 'PAUSED')) { e.preventDefault(); game.togglePause(); return; }
 
@@ -1846,6 +1851,12 @@ document.getElementById('logout-btn').onclick = () => {
       longPressTimer = null;
     }, LONG_PRESS_MS);
 
+    // ── FIX v4.0.3: ignorar toque se modal de registro estiver aberto ──
+    if (regModal && regModal.classList.contains('show')) {
+      activeTouchId = null;
+      return;
+    }
+
     // Inicia o jogo se estiver em IDLE/GAMEOVER/INTRO (como o START antigo)
     Audio.init();
     if (game.state === 'IDLE') {
@@ -1950,6 +1961,8 @@ document.getElementById('logout-btn').onclick = () => {
   let mouseDown = false;
   function onMouseDown(e) {
     if (e.button !== 0) return;
+    // ── FIX v4.0.3: ignorar clique se modal de registro estiver aberto ──
+    if (regModal && regModal.classList.contains('show')) return;
     // Só funciona em modo touch (pointer: coarse)
     const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
     if (!isTouchDevice && !('ontouchstart' in window)) return;

@@ -7,6 +7,16 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [4.0.3] - 2026-07-09
+
+### Fixed
+
+#### ⌨️ Atalhos do teclado não interferem mais no modal de registro
+- **Bug 1**: Atalhos do jogo (Space, C, N, R, setas) eram ativados enquanto o jogador digitava nickname/email no modal — agora o `keydown` global ignora teclas quando o foco está em `INPUT` ou quando o modal `score-reg-modal` está visível
+- **Bug 2**: O jogo continuava respondendo a toques por trás do modal — os handlers `touchstart` e `mousedown` do joystick virtual agora verificam se o modal está aberto antes de processar inputs
+
+---
+
 ## [4.0.2] - 2026-07-09
 
 ### Fixed
