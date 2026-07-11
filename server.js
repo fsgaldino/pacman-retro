@@ -57,12 +57,24 @@ try {
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' }));
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+
+// ── Redirect da raiz para /demos/Pacman/ ────────────────────
+app.get('/', (req, res) => {
+  res.redirect(301, '/demos/Pacman/');
+});
+
+// ── Servidor de arquivos estáticos sob /demos/Pacman/ ──────
+app.use('/demos/Pacman', express.static(path.join(__dirname, 'public'), { index: false }));
+
+// ── Rota principal: serve index.html em /demos/Pacman/ ─────
+app.get('/demos/Pacman/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // ── Helpers ─────────────────────────────────────────────────
 function sanitize(v) {
   if (typeof v !== 'string') return '';
-  return v.trim().replace(/[<>&'\"]/g, '').slice(0, 255);
+  return v.trim().replace(/[<>&'\\"]/g, '').slice(0, 255);
 }
 
 function isValidEmail(email) {
@@ -89,10 +101,11 @@ function authMiddleware(req, res, next) {
   next();
 }
 
-// ── Rotas de Autenticação (Passwordless) ─────────────────────
+// ── Router da API sob /demos/Pacman/api ─────────────────────
+const api = express.Router();
 
 // POST /api/register  — passwordless: só nome + email
-app.post('/api/register', (req, res) => {
+api.post('/register', (req, res) => {
   try {
     const { name, email } = req.body || {};
     const cleanName = sanitize(name);
@@ -136,7 +149,7 @@ app.post('/api/register', (req, res) => {
 });
 
 // POST /api/login  — passwordless: só email
-app.post('/api/login', (req, res) => {
+api.post('/login', (req, res) => {
   try {
     const { email } = req.body || {};
     const cleanEmail = sanitize(email).toLowerCase();
@@ -165,14 +178,14 @@ app.post('/api/login', (req, res) => {
 });
 
 // POST /api/logout
-app.post('/api/logout', authMiddleware, (req, res) => {
+api.post('/logout', authMiddleware, (req, res) => {
   const token = req.headers.authorization.slice(7);
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
   res.json({ ok: true });
 });
 
 // GET /api/me
-app.get('/api/me', authMiddleware, (req, res) => {
+api.get('/me', authMiddleware, (req, res) => {
   const user = db.prepare(
     'SELECT id, name, email, created_at FROM users WHERE id = ?'
   ).get(req.userId);
@@ -183,7 +196,7 @@ app.get('/api/me', authMiddleware, (req, res) => {
 // ── Rotas de Pontuação ──────────────────────────────────────
 
 // GET /api/scores?limit=10
-app.get('/api/scores', (req, res) => {
+api.get('/scores', (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
   const scores = db.prepare(
     "SELECT score, player_email, player_name, created_at FROM scores ORDER BY score DESC LIMIT ?"
@@ -192,7 +205,7 @@ app.get('/api/scores', (req, res) => {
 });
 
 // POST /api/scores  (autenticada)
-app.post('/api/scores', authMiddleware, (req, res) => {
+api.post('/scores', authMiddleware, (req, res) => {
   try {
     const score = parseInt(req.body.score);
     if (isNaN(score) || score < 0 || score > 999999) {
@@ -209,12 +222,10 @@ app.post('/api/scores', authMiddleware, (req, res) => {
   }
 });
 
-// ── HTML5 History fallback ──────────────────────────────────
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// Monta o router da API em /demos/Pacman/api
+app.use('/demos/Pacman/api', api);
 
 // ── Start ───────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🎮 Pac-Man rodando em http://localhost:${PORT}`);
+  console.log(`🎮 Pac-Man rodando em http://localhost:${PORT}/demos/Pacman/`);
 });
