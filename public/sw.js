@@ -1,14 +1,15 @@
 /**
- * sw.js — Service Worker do Pac-Man Retrô v3.0
+ * sw.js — Service Worker do Pac-Man Retrô v4.0
  * Estratégia: Network First com cache para assets estáticos
+ * Cache scope: /demos/Pacman/ (subpath corporativo)
  */
 
-const CACHE = 'pacman-v3';
+const CACHE = 'pacman-v4';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/game.js',
-  '/manifest.json',
+  '/demos/Pacman/',
+  '/demos/Pacman/index.html',
+  '/demos/Pacman/game.js',
+  '/demos/Pacman/manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,8 +29,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // API calls: network only
-  if (event.request.url.includes('/api/')) {
+  // API calls: network only (prefixo /demos/Pacman/api/)
+  if (event.request.url.includes('/demos/Pacman/api/')) {
     return;
   }
 

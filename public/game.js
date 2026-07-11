@@ -488,7 +488,7 @@ class Game {
   }
 
   async _fetchPauseScores() {
-    try { const res = await fetch('/api/scores?limit=5'); this._pauseScores = await res.json(); }
+    try { const res = await fetch('/demos/Pacman/api/scores?limit=5'); this._pauseScores = await res.json(); }
     catch (_) { this._pauseScores = []; }
   }
 
@@ -908,7 +908,7 @@ class Game {
   async _autoSubmitScore(player) {
     if (!player || !player.token || this.score <= 0) return;
     try {
-      await fetch('/api/scores', {
+      await fetch('/demos/Pacman/api/scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -953,7 +953,7 @@ class Game {
     const player = getPlayerReg();
     if (!player || !player.token || this.score <= 0) return;
     try {
-      await fetch('/api/scores', {
+      await fetch('/demos/Pacman/api/scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -961,7 +961,7 @@ class Game {
         },
         body: JSON.stringify({ score: this.score })
       });
-      const res = await fetch('/api/scores?limit=10');
+      const res = await fetch('/demos/Pacman/api/scores?limit=10');
       const scores = await res.json();
       const rank = scores.findIndex(s => s.score <= this.score && s.player_email);
       if (rank >= 0 && this.score > 0) {
@@ -1275,7 +1275,7 @@ class Game {
   }
   async _fetchRankingScores() {
     try {
-      const res = await fetch('/api/scores?limit=10');
+      const res = await fetch('/demos/Pacman/api/scores?limit=10');
       const scores = await res.json();
       const list = document.getElementById('ranking-list');
       if (!list) return;
@@ -1603,7 +1603,7 @@ async function submitScoreReg(name, email) {
 
   try {
     // Tenta registrar (cria conta se nova, ou faz login se já existe)
-    const regRes = await fetch('/api/register', {
+    const regRes = await fetch('/demos/Pacman/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email })
@@ -1623,7 +1623,7 @@ async function submitScoreReg(name, email) {
         return;
       }
       // Email já existe → faz login
-      const loginRes = await fetch('/api/login', {
+      const loginRes = await fetch('/demos/Pacman/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -1647,7 +1647,7 @@ async function submitScoreReg(name, email) {
     savePlayerReg(name, email, token);
 
     // Submete a pontuação
-    const scoreRes = await fetch('/api/scores', {
+    const scoreRes = await fetch('/demos/Pacman/api/scores', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1728,7 +1728,7 @@ document.getElementById('logout-btn').onclick = () => {
   const player = getPlayerReg();
   if (player && player.token) {
     // Tenta invalidar token no servidor
-    fetch('/api/logout', {
+    fetch('/demos/Pacman/api/logout', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${player.token}` }
     }).catch(() => {});

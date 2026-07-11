@@ -1,14 +1,17 @@
 """
 main.py — Servidor FastAPI para o Pac-Man Retrô v4.0
 
-Endpoints:
-  POST /api/login       — login por email (passwordless)
-  POST /api/register    — registro por nome + email (passwordless)
-  POST /api/logout      — invalida token
-  GET  /api/me          — dados do jogador autenticado
-  GET  /api/scores      — ranking de pontuações
-  POST /api/scores      — submissão de pontuação (autenticada)
-  POST /api/reset-score — reseta ranking e desloga todos (requer token admin)
+Endpoints (prefixo obrigatório /demos/Pacman):
+  POST /demos/Pacman/api/login       — login por email (passwordless)
+  POST /demos/Pacman/api/register    — registro por nome + email (passwordless)
+  POST /demos/Pacman/api/logout      — invalida token
+  GET  /demos/Pacman/api/me          — dados do jogador autenticado
+  GET  /demos/Pacman/api/scores      — ranking de pontuações
+  POST /demos/Pacman/api/scores      — submissão de pontuação (autenticada)
+  POST /demos/Pacman/api/reset-score  — reseta ranking e desloga todos (requer token admin)
+  GET  /demos/Pacman/api/health      — health check
+  GET  /demos/Pacman/...             — arquivos estáticos do frontend
+  GET  /                             — redireciona para /demos/Pacman/
 """
 
 import os
@@ -17,9 +20,8 @@ import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends, Header
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, Depends, Header, APIRouter
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.models import get_db, close_db
@@ -96,10 +98,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Router com prefixo /demos/Pacman ──────────────────────
+router = APIRouter(prefix="/demos/Pacman")
+
 
 # ── Rotas de Autenticação ───────────────────────────────────
 
-@app.post("/api/register", response_model=AuthResponse, status_code=201)
+@router.post("/api/register", response_model=AuthResponse, status_code=201)
 def register(req: RegisterRequest):
     """
     Registra um novo jogador usando nome + email (passwordless).
@@ -155,7 +160,7 @@ def register(req: RegisterRequest):
     return AuthResponse(token=token, email=email, name=name)
 
 
-@app.post("/api/login", response_model=AuthResponse)
+@router.post("/api/login", response_model=AuthResponse)
 def login(req: LoginRequest):
     """
     Login validado apenas por email (passwordless).
@@ -187,7 +192,7 @@ def login(req: LoginRequest):
     return AuthResponse(token=token, email=player["email"], name=player["name"] or "")
 
 
-@app.post("/api/logout")
+@router.post("/api/logout")
 def logout(player_id: int = Depends(get_current_user), authorization: str = Header(None)):
     """Invalida o token atual."""
     token = authorization[7:]
@@ -197,7 +202,7 @@ def logout(player_id: int = Depends(get_current_user), authorization: str = Head
     return {"ok": True}
 
 
-@app.get("/api/me")
+@router.get("/api/me")
 def me(player_id: int = Depends(get_current_user)):
     """Retorna dados do jogador autenticado."""
     db = get_db()
@@ -217,7 +222,7 @@ def me(player_id: int = Depends(get_current_user)):
 
 # ── Rotas de Pontuação ──────────────────────────────────────
 
-@app.get("/api/scores")
+@router.get("/api/scores")
 def list_scores(limit: int = 10):
     """
     Retorna o ranking de pontuações (top N).
@@ -243,7 +248,7 @@ def list_scores(limit: int = 10):
     ]
 
 
-@app.post("/api/scores", status_code=201)
+@router.post("/api/scores", status_code=201)
 def submit_score(
     body: ScoreSubmit,
     player_id: int = Depends(get_current_user),
@@ -270,7 +275,7 @@ def submit_score(
 
 # ── Reset de Score (Admin) ────────────────────────────────
 
-@app.post("/api/reset-score", response_model=ResetScoreResponse)
+@router.post("/api/reset-score", response_model=ResetScoreResponse)
 def reset_score(body: ResetScoreRequest):
     expected_token = os.environ.get("RESET_SCORE_TOKEN", "")
     if not expected_token:
@@ -301,27 +306,54 @@ def reset_score(body: ResetScoreRequest):
 
 # ── Health ──────────────────────────────────────────────────
 
-@app.get("/api/health", response_model=HealthResponse)
+@router.get("/api/health", response_model=HealthResponse)
 def health():
     return HealthResponse(status="ok", version="4.0.0")
 
 
-# ── Static Files & SPA Fallback ─────────────────────────────
+# ── Inclui router ───────────────────────────────────────────
 
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+app.include_router(router)
 
 
-@app.get("/{full_path:path}")
+# ── Static Files & SPA Fallback (sob /demos/Pacman/) ────────
+
+@app.get("/demos/Pacman/{full_path:path}")
 async def serve_frontend(full_path: str):
-    """Serve o index.html para qualquer rota não-API (SPA fallback)."""
+    """Serve arquivos estáticos e index.html para rotas SPA sob /demos/Pacman/."""
+    # 1. Tenta arquivo exato
     file_path = FRONTEND_DIR / full_path
     if file_path.exists() and file_path.is_file():
         return FileResponse(str(file_path))
+
+    # 2. Se o path vazio ou aponta para diretório, serve index.html
+    if not full_path or full_path.endswith("/") or (FRONTEND_DIR / full_path).is_dir():
+        index_path = FRONTEND_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(str(index_path))
+
+    # 3. Fallback: serve index.html para qualquer rota SP A (deep link)
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+
+    return JSONResponse(status_code=404, content={"error": "Not found"})
+
+
+@app.get("/demos/Pacman/")
+async def serve_frontend_root():
+    """Redireciona /demos/Pacman/ para index.html."""
     index_path = FRONTEND_DIR / "index.html"
     if index_path.exists():
         return FileResponse(str(index_path))
     return JSONResponse(status_code=404, content={"error": "Not found"})
+
+
+# ── Redirect da raiz para /demos/Pacman/ ───────────────────
+
+@app.get("/")
+async def root_redirect():
+    return RedirectResponse(url="/demos/Pacman/")
 
 
 # ── Entry point ─────────────────────────────────────────────

@@ -1,8 +1,8 @@
 {
   "name": "Pac-Man Retrô",
   "short_name": "Pac-Man",
-  "description": "Pac-Man Retrô v3.0 — ProntaCorp S.A.",
-  "start_url": "/",
+  "description": "Pac-Man Retrô v4.0 — ProntaCorp S.A.",
+  "start_url": "/demos/Pacman/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a0a",
