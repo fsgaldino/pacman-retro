@@ -1,19 +1,13 @@
 {
-  "name": "pacman-app",
-  "version": "1.0.0",
-  "description": "Retro Pac-Man com backend Node.js + SQLite + frontend HTML5 Canvas",
-  "main": "server.js",
+  "name": "pacman-retro",
+  "version": "4.0.3",
+  "description": "Pac-Man Retrô v4.0 — Arcade Flow. Full-stack Pac-Man game with Python FastAPI backend + HTML5 Canvas frontend + PWA.",
   "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.6.0",
-    "cors": "^2.8.5",
-    "express": "^4.21.0"
-  },
-  "devDependencies": {
-    "jsdom": "^29.1.1",
-    "puppeteer": "^25.2.1"
+    "install": "pip install -r backend/requirements.txt",
+    "start": "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}",
+    "dev": "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000} --reload",
+    "build": "docker build -t pacman-retro .",
+    "test:backend": "cd backend && python -m pytest tests/test_backend.py -v",
+    "test:movement": "node tests/test_movement.js"
   }
 }
