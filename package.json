@@ -1,6 +1,6 @@
 {
   "name": "pacman-retro",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "description": "Pac-Man Retrô v4.0 — Arcade Flow. Full-stack Pac-Man game with Python FastAPI backend + HTML5 Canvas frontend + PWA.",
   "scripts": {
     "install": "pip install -r backend/requirements.txt",

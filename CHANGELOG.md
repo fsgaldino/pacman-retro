@@ -7,6 +7,22 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [4.0.4] - 2026-07-11
+
+### Changed
+
+#### 🌐 Rotas migradas para subpath corporativo /demos/Pacman/
+- **backend/main.py**: Todas as rotas FastAPI migradas para `APIRouter(prefix="/demos/Pacman")`
+- **public/game.js**: Chamadas `fetch()` atualizadas de `/api/...` para `/demos/Pacman/api/...`
+- **public/sw.js**: Cache ASSETS com prefixo `/demos/Pacman/...`, filtro de API atualizado
+- **public/manifest.json**: `start_url` alterado para `"/demos/Pacman/"`
+- **server.js**: Servidor Express com redirect `/` → `/demos/Pacman/`, router da API em `/demos/Pacman/api`
+- **backend/main.py**: Redirect 301 de `/` para `/demos/Pacman/`
+- **tests/test_backend.py**: Todas as requisições de teste atualizadas para `/demos/Pacman/api/...`
+- **Backend**: 16/16 testes passando validando o novo prefixo
+
+---
+
 ## [4.0.3] - 2026-07-09
 
 ### Fixed
